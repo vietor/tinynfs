@@ -1,0 +1,9 @@
+/.aproject
+/bin
+/pkg
+/data
+/src/github.com
+
+GPATH
+GRTAGS
+GTAGS
