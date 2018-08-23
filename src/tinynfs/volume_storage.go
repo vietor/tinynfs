@@ -1,8 +1,8 @@
 package tinynfs
 
 import (
+	"fmt"
 	"os"
-	"strconv"
 )
 
 type VolumeStorage struct {
@@ -10,7 +10,7 @@ type VolumeStorage struct {
 }
 
 func (self *VolumeStorage) getFilePath(id int) string {
-	return self.fileroot + "/volume-" + strconv.Itoa(id)
+	return self.fileroot + fmt.Sprintf("/volume-%04d", id)
 }
 
 func (self *VolumeStorage) ReadFile(id int, offset int64, size int) (data []byte, err error) {
