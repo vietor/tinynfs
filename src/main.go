@@ -25,7 +25,7 @@ func GetCWD() string {
 }
 
 func testDirectStorage(cwd string) {
-	dstorage := tinynfs.NewDirectStorage(filepath.Join(cwd, "data", "directs"))
+	dstorage, _ := tinynfs.NewDirectStorage(filepath.Join(cwd, "data", "directs"))
 	filename, err := dstorage.WriteFile(testBuffer)
 	if err != nil {
 		fmt.Println(err)
@@ -41,7 +41,7 @@ func testDirectStorage(cwd string) {
 }
 
 func testVolumeStorage(cwd string) {
-	bstorage := tinynfs.NewVolumeStorage(filepath.Join(cwd, "data", "volumes"))
+	bstorage, _ := tinynfs.NewVolumeStorage(filepath.Join(cwd, "data", "volumes"))
 	err := bstorage.WriteFile(0, 1000, testBuffer)
 	if err != nil {
 		fmt.Println(err)

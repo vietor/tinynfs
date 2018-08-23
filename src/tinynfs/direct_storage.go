@@ -33,6 +33,11 @@ func (self *DirectStorage) WriteFile(data []byte) (filename string, err error) {
 	return filename, nil
 }
 
-func NewDirectStorage(fileroot string) *DirectStorage {
-	return &DirectStorage{fileroot}
+func NewDirectStorage(fileroot string) (storage *DirectStorage, err error) {
+	err = os.MkdirAll(fileroot, 0777)
+	if err != nil {
+		return nil, err
+	}
+	storage = &DirectStorage{fileroot}
+	return storage, nil
 }

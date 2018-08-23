@@ -29,11 +29,6 @@ func (self *VolumeStorage) ReadFile(id int, offset int64, size int) (data []byte
 }
 
 func (self *VolumeStorage) WriteFile(id int, offset int64, data []byte) (err error) {
-	err = os.MkdirAll(self.fileroot, 0777)
-	if err != nil {
-		return err
-	}
-
 	f, err := os.OpenFile(self.getFilePath(id), os.O_CREATE|os.O_WRONLY, 0644)
 	if err != nil {
 		return nil
@@ -44,6 +39,11 @@ func (self *VolumeStorage) WriteFile(id int, offset int64, data []byte) (err err
 	return err
 }
 
-func NewVolumeStorage(fileroot string) *VolumeStorage {
-	return &VolumeStorage{fileroot}
+func NewVolumeStorage(fileroot string) (storage *VolumeStorage, err error) {
+	err = os.MkdirAll(fileroot, 0777)
+	if err != nil {
+		return nil, err
+	}
+	storage = &VolumeStorage{fileroot}
+	return storage, nil
 }
