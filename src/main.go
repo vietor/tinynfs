@@ -29,28 +29,32 @@ func testDirectStorage(cwd string) {
 	filename, err := dstorage.WriteFile(testBuffer)
 	if err != nil {
 		fmt.Println(err)
+		return
 	} else {
 		fmt.Println("filename: " + filename)
 	}
 	data, err := dstorage.ReadFile(filename)
 	if err != nil {
 		fmt.Println(err)
+		return
 	} else {
 		fmt.Println("read: " + string(data))
 	}
 }
 
 func testVolumeStorage(cwd string) {
-	bstorage, _ := tinynfs.NewVolumeStorage(filepath.Join(cwd, "data", "volumes"))
-	err := bstorage.WriteFile(0, 1000, testBuffer)
+	bstorage, _ := tinynfs.NewVolumeStorage(filepath.Join(cwd, "data", "volumes"), int64(len(testBuffer))+1)
+	id, offset, err := bstorage.WriteFile(testBuffer)
 	if err != nil {
 		fmt.Println(err)
+		return
 	} else {
 		fmt.Println("write success: ")
 	}
-	data, err := bstorage.ReadFile(0, 1000, len(testBuffer))
+	data, err := bstorage.ReadFile(id, offset, len(testBuffer))
 	if err != nil {
 		fmt.Println(err)
+		return
 	} else {
 		fmt.Println("read: " + string(data))
 	}
