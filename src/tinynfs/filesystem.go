@@ -16,11 +16,11 @@ var (
 )
 
 type FileNode struct {
-	Size         int
-	Storage      int // 0-direct, 1-volume
-	DirectFile   string
-	VolumeId     int64
-	VolumeOffset int64
+	Size         int    `json:"size"`
+	Storage      int    `json:"storage"` // 0-direct, 1-volume
+	DirectFile   string `json:"direct_file"`
+	VolumeId     int64  `json:"volume_id"`
+	VolumeOffset int64  `json:"volume_offset"`
 }
 
 type FileSystem struct {
