@@ -2,11 +2,12 @@ package main
 
 import (
 	"fmt"
-	"math/rand"
 	"os"
 	"os/exec"
+	"os/signal"
 	"path/filepath"
-	"time"
+	"syscall"
+	"tinynfs"
 )
 
 func GetCWD() string {
@@ -18,7 +19,37 @@ func GetCWD() string {
 	}
 	return cwd
 }
+
+func StartSignal(server *tinynfs.HttpServer) {
+	var (
+		sc chan os.Signal
+		s  os.Signal
+	)
+	sc = make(chan os.Signal, 1)
+	signal.Notify(sc, syscall.SIGHUP, syscall.SIGQUIT, syscall.SIGTERM, syscall.SIGINT, syscall.SIGSTOP)
+	for {
+		s = <-sc
+		switch s {
+		case syscall.SIGQUIT, syscall.SIGTERM, syscall.SIGINT, syscall.SIGSTOP:
+			server.Close()
+			return
+		default:
+			return
+		}
+	}
+}
+
 func main() {
 	cwd := GetCWD()
-	fmt.Println("cwd: " + cwd)
+	fs, err := tinynfs.NewFileSystem(filepath.Join(cwd, "data"))
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
+	server, err := tinynfs.NewHttpServer(fs, ":8090")
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
+	StartSignal(server)
 }
