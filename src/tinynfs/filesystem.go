@@ -149,7 +149,7 @@ func NewFileSystem(root string) (fs *FileSystem, err error) {
 	fs = &FileSystem{}
 	fs.root = root
 	fs.enableHash = true
-	fs.directLimit = 1 * 1024 * 1024
+	fs.directLimit = 4 * 1024 * 1024
 	fs.volumeLimit = 4 * 1024 * 1024 * 1024
 	if err = fs.init(); err != nil {
 		return nil, err
