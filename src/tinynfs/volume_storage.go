@@ -106,8 +106,7 @@ func (self *VolumeStorage) WriteFile(data []byte) (id int64, offset int64, err e
 }
 
 func NewVolumeStorage(root string, limit int64) (storage *VolumeStorage, err error) {
-	err = os.MkdirAll(root, 0777)
-	if err != nil {
+	if err = os.MkdirAll(root, 0777); err != nil {
 		return nil, err
 	}
 
@@ -117,6 +116,8 @@ func NewVolumeStorage(root string, limit int64) (storage *VolumeStorage, err err
 		map[int64]*VolumeInfo{},
 		map[int64]*VolumeInfo{},
 	}
-	storage.init()
+	if err = storage.init(); err != nil {
+		return nil, err
+	}
 	return storage, nil
 }
