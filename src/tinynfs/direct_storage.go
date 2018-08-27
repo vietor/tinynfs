@@ -3,7 +3,6 @@ package tinynfs
 import (
 	"fmt"
 	"io/ioutil"
-	"math/rand"
 	"os"
 	"time"
 )
@@ -17,15 +16,15 @@ func (self *DirectStorage) ReadFile(filename string) (data []byte, err error) {
 }
 
 func (self *DirectStorage) WriteFile(extname string, data []byte) (filename string, err error) {
-	randText := fmt.Sprintf("%04x", rand.Intn(65536))
-	timeText := fmt.Sprintf("%x", time.Now().UnixNano())
-
+	randText := randHex(5)
 	pathText := randText[0:2] + "/" + randText[2:4]
+	nameText := randText[5:] + fmt.Sprintf("%x", time.Now().UnixNano())
+
 	err = os.MkdirAll((self.root + "/" + pathText), 0777)
 	if err != nil {
 		return "", err
 	}
-	filename = pathText + "/" + timeText
+	filename = pathText + "/" + nameText
 	if len(extname) > 0 {
 		filename = filename + "." + extname
 	}

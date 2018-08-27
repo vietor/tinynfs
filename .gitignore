@@ -2,6 +2,7 @@
 /bin
 /pkg
 /data
+/test
 /src/github.com
 
 GPATH
