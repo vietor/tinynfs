@@ -2,7 +2,6 @@ package tinynfs
 
 import (
 	crand "crypto/rand"
-	"errors"
 	"fmt"
 	"io"
 	mrand "math/rand"
@@ -45,7 +44,7 @@ func (self *FileLock) Lock() error {
 	err = SysFlock(int(file.Fd()))
 	if err != nil {
 		file.Close()
-		return errors.New("File already locked: " + self.lockfile)
+		return fmt.Errorf("File already locked: %s", self.lockfile)
 	}
 	file.Truncate(0)
 	file.Write([]byte(fmt.Sprintf("%d", os.Getpid())))
