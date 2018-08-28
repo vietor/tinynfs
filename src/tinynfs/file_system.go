@@ -10,7 +10,8 @@ import (
 )
 
 var (
-	FileBucket = []byte("files")
+	fileBucket       = []byte("files")
+	deleteFileBucket = []byte("deletefiles")
 )
 
 type FileNode struct {
@@ -41,7 +42,14 @@ func (self *FileSystem) init() (err error) {
 		return err
 	}
 	self.directoryDB.Update(func(tx *bolt.Tx) error {
-		_, err := tx.CreateBucket(FileBucket)
+		_, err := tx.CreateBucket(fileBucket)
+		if err != nil {
+			return fmt.Errorf("create bucket: %s", err)
+		}
+		return nil
+	})
+	self.directoryDB.Update(func(tx *bolt.Tx) error {
+		_, err := tx.CreateBucket(deleteFileBucket)
 		if err != nil {
 			return fmt.Errorf("create bucket: %s", err)
 		}
@@ -78,7 +86,7 @@ func (self *FileSystem) putFileNode(bucket []byte, key []byte, node *FileNode) e
 }
 
 func (self *FileSystem) ReadFile(filepath string) (filemime string, data []byte, err error) {
-	node, _ := self.getFileNode(FileBucket, []byte(filepath))
+	node, _ := self.getFileNode(fileBucket, []byte(filepath))
 	if node == nil {
 		return "", nil, os.ErrNotExist
 	}
@@ -91,44 +99,45 @@ func (self *FileSystem) ReadFile(filepath string) (filemime string, data []byte,
 }
 
 func (self *FileSystem) WriteFile(filepath string, filemime string, data []byte) (err error) {
-	var node *FileNode
-
-	if node == nil {
-		size := len(data)
-		if size > int(self.config.DirectLimit) {
-			directpath, err := self.directStorage.WriteFile("", data)
-			if err != nil {
-				return err
-			}
-			node = &FileNode{size, filemime, 0, directpath, 0, 0}
-		} else {
-			volumeId, volumeOffset, err := self.volumeStroage.WriteFile(data)
-			if err != nil {
-				return err
-			}
-			node = &FileNode{size, filemime, 1, "", volumeId, volumeOffset}
-		}
-	}
-	return self.directoryDB.Update(func(tx *bolt.Tx) error {
-		bt := tx.Bucket(FileBucket)
-		b, err := json.Marshal(node)
+	oldnode, _ := self.getFileNode(fileBucket, []byte(filepath))
+	var (
+		node *FileNode
+		size = len(data)
+	)
+	if size > int(self.config.DirectLimit) {
+		directpath, err := self.directStorage.WriteFile("", data)
 		if err != nil {
 			return err
 		}
-		return bt.Put([]byte(filepath), b)
-	})
+		node = &FileNode{size, filemime, 0, directpath, 0, 0}
+	} else {
+		volumeId, volumeOffset, err := self.volumeStroage.WriteFile(data)
+		if err != nil {
+			return err
+		}
+		node = &FileNode{size, filemime, 1, "", volumeId, volumeOffset}
+	}
+	err = self.putFileNode(fileBucket, []byte(filepath), node)
+	if err == nil && oldnode != nil {
+		self.putFileNode(deleteFileBucket, []byte(fmt.Sprintf("%s\r\n%d", filepath, time.Now().UnixNano())), oldnode)
+	}
+	return err
 }
 
 func (self *FileSystem) DeleteFile(filepath string) (err error) {
-	node, _ := self.getFileNode(FileBucket, []byte(filepath))
+	node, _ := self.getFileNode(fileBucket, []byte(filepath))
 	if node == nil {
 		return os.ErrNotExist
 	}
 
-	return self.directoryDB.Update(func(tx *bolt.Tx) error {
-		bt := tx.Bucket(FileBucket)
+	err = self.directoryDB.Update(func(tx *bolt.Tx) error {
+		bt := tx.Bucket(fileBucket)
 		return bt.Delete([]byte(filepath))
 	})
+	if err == nil {
+		self.putFileNode(deleteFileBucket, []byte(fmt.Sprintf("%s\r\n%d", filepath, time.Now().UnixNano())), node)
+	}
+	return err
 }
 
 func NewFileSystem(root string, config *Storage) (fs *FileSystem, err error) {
