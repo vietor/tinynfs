@@ -25,6 +25,7 @@ func (self *HttpServer) startApi() {
 	)
 	serveMux.HandleFunc("/get", self.handleApiGet)
 	serveMux.HandleFunc("/upload", self.handleApiUpload)
+	serveMux.HandleFunc("/delete", self.handleApiDelete)
 	err := server.Serve(self.listener)
 	if err != nil {
 		fmt.Println(err)
@@ -140,6 +141,32 @@ func (self *HttpServer) handleApiUpload(res http.ResponseWriter, req *http.Reque
 	}
 	xdata["size"] = len(filedata)
 	xdata["mime"] = filemime
+	xdata["path"] = filepath
+}
+
+func (self *HttpServer) handleApiDelete(res http.ResponseWriter, req *http.Request) {
+	if req.Method != "POST" {
+		http.Error(res, http.StatusText(http.StatusMethodNotAllowed), http.StatusMethodNotAllowed)
+		return
+	}
+
+	var (
+		xerr  error
+		xdata = map[string]interface{}{}
+	)
+	defer self.httpSendJsonData(res, req, &xerr, xdata)
+
+	filepath := req.FormValue("filepath")
+	if !strings.HasPrefix(filepath, "/") || strings.HasSuffix(filepath, "/") {
+		xerr = ErrParam
+		return
+	}
+
+	err := self.storage.DeleteFile(filepath)
+	if err != nil {
+		xerr = err
+		return
+	}
 	xdata["path"] = filepath
 }
 

@@ -139,6 +139,30 @@ func (self *FileSystem) WriteFile(filepath string, filemime string, data []byte)
 	})
 }
 
+func (self *FileSystem) DeleteFile(filepath string) (err error) {
+	var node *FileNode = nil
+
+	self.directoryDB.View(func(tx *bolt.Tx) error {
+		bt := tx.Bucket(FileBucket)
+		v := bt.Get([]byte(filepath))
+		if v != nil {
+			err := json.Unmarshal(v, &node)
+			if err != nil {
+				node = nil
+			}
+		}
+		return nil
+	})
+	if node == nil {
+		return os.ErrNotExist
+	}
+
+	return self.directoryDB.Update(func(tx *bolt.Tx) error {
+		bt := tx.Bucket(FileBucket)
+		return bt.Delete([]byte(filepath))
+	})
+}
+
 func NewFileSystem(root string, config *Storage) (fs *FileSystem, err error) {
 	if err = os.MkdirAll(root, 0777); err != nil {
 		return nil, err
