@@ -13,8 +13,8 @@ func TestRandHex(t *testing.T) {
 	}
 }
 
-func TestDiskUsage(t *testing.T) {
-	info, err := DiskUsage("../../test")
+func TestGetDiskUsage(t *testing.T) {
+	info, err := GetDiskUsage("../../test")
 	if err != nil {
 		t.Error("SysDiskUsage error", err)
 	} else {
