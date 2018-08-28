@@ -11,6 +11,12 @@ import (
 	"time"
 )
 
+type DiskStat struct {
+	Size uint64
+	Used uint64
+	Free uint64
+}
+
 var myRand = struct {
 	lock sync.Mutex
 	rand *mrand.Rand

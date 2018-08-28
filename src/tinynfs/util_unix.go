@@ -11,3 +11,17 @@ func SysFlock(fd int) error {
 func SysUnflock(fd int) error {
 	return syscall.Flock(fd, syscall.LOCK_UN)
 }
+
+func DiskUsage(path string) (info *DiskStat, err error) {
+	fs := syscall.Statfs_t{}
+	err = syscall.Statfs(path, &fs)
+	if err != nil {
+		return nil, err
+	}
+	info = &DiskStat{
+		Size: fs.Blocks * uint64(fs.Bsize),
+		Free: fs.Bfree * uint64(fs.Bsize),
+	}
+	info.Used = info.Size - info.Free
+	return info, nil
+}

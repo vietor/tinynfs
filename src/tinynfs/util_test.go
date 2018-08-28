@@ -12,3 +12,12 @@ func TestRandHex(t *testing.T) {
 		t.Log("RandomHex success")
 	}
 }
+
+func TestDiskUsage(t *testing.T) {
+	info, err := DiskUsage("../../test")
+	if err != nil {
+		t.Error("SysDiskUsage error", err)
+	} else {
+		t.Logf("SysDiskUsage success: %d, %d, %d", info.Size, info.Used, info.Free)
+	}
+}

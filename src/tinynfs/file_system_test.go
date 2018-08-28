@@ -13,7 +13,7 @@ var (
 func TestFileSystem(t *testing.T) {
 
 	filename := "/a/a"
-	fs, err := NewFileSystem(filepath.Join("../../test", "data-fs"), &Stroage{
+	fs, err := NewFileSystem(filepath.Join("../../test", "data-fs"), &Storage{
 		DirectLimit: 4 * 1024 * 1024,
 		VolumeLimit: 4 * 1024 * 1024 * 1024,
 	})
