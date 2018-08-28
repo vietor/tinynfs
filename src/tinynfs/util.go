@@ -9,17 +9,19 @@ import (
 	"time"
 )
 
-var (
-	utilRand      = mrand.New(mrand.NewSource(time.Now().UnixNano()))
-	utilRandMutex sync.Mutex
-)
+var myRand = struct {
+	lock sync.Mutex
+	rand *mrand.Rand
+}{
+	rand: mrand.New(mrand.NewSource(time.Now().UnixNano())),
+}
 
-func randHex(bytes int) (hex string) {
+func RandHex(bytes int) (hex string) {
 	randBytes := make([]byte, bytes)
 	if _, err := io.ReadFull(crand.Reader, randBytes); err != nil {
-		utilRandMutex.Lock()
-		utilRand.Read(randBytes)
-		utilRandMutex.Unlock()
+		myRand.lock.Lock()
+		myRand.rand.Read(randBytes)
+		myRand.lock.Unlock()
 	}
 	return fmt.Sprintf("%x", randBytes)
 }

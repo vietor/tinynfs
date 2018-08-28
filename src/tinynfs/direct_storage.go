@@ -16,7 +16,7 @@ func (self *DirectStorage) ReadFile(filepath string) (data []byte, err error) {
 }
 
 func (self *DirectStorage) WriteFile(extname string, data []byte) (filepath string, err error) {
-	randText := randHex(5)
+	randText := RandHex(5)
 	pathText := randText[0:2] + "/" + randText[2:4]
 	nameText := randText[5:] + fmt.Sprintf("%x", time.Now().UnixNano())
 
