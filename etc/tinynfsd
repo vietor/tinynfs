@@ -1,0 +1,4 @@
+# network.port=7119
+# storage.enablehash=true
+# storage.directlimit=4MB
+# storage.volumelimit=4GB

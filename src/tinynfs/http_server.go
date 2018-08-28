@@ -38,7 +38,7 @@ func (self *HttpServer) Close() {
 }
 
 func (self *HttpServer) getHttpStatusCode(err error) int {
-	if err == ErrHttpParam {
+	if err == ErrParam {
 		return http.StatusBadRequest
 	} else if err == os.ErrPermission {
 		return http.StatusForbidden
@@ -91,7 +91,7 @@ func (self *HttpServer) handleApiGet(res http.ResponseWriter, req *http.Request)
 
 	filepath := req.FormValue("filepath")
 	if !strings.HasPrefix(filepath, "/") || strings.HasSuffix(filepath, "/") {
-		xerr = ErrHttpParam
+		xerr = ErrParam
 		return
 	}
 
@@ -118,13 +118,13 @@ func (self *HttpServer) handleApiUpload(res http.ResponseWriter, req *http.Reque
 
 	filepath := req.FormValue("filepath")
 	if !strings.HasPrefix(filepath, "/") || strings.HasSuffix(filepath, "/") {
-		xerr = ErrHttpParam
+		xerr = ErrParam
 		return
 	}
 
 	datafile, dataheader, err := req.FormFile("filedata")
 	if err != nil {
-		xerr = ErrHttpParam
+		xerr = ErrParam
 		return
 	}
 	filedata, err := ioutil.ReadAll(datafile)

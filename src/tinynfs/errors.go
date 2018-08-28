@@ -3,5 +3,5 @@ package tinynfs
 import "errors"
 
 var (
-	ErrHttpParam = errors.New("Bad parameters")
+	ErrParam = errors.New("Bad parameters")
 )
