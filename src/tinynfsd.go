@@ -43,11 +43,10 @@ func main() {
 	datapath := filepath.Join(GetCWD(), "data")
 	locker := tinynfs.NewFileLock(filepath.Join(datapath, "tinynfsd.lock"))
 	if err := locker.Lock(); err != nil {
-		fmt.Println("Already running")
+		fmt.Println(err)
 		return
 	}
 	defer locker.Unlock()
-
 	fs, err := tinynfs.NewFileSystem(datapath)
 	if err != nil {
 		fmt.Println(err)

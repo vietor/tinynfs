@@ -2,10 +2,12 @@ package tinynfs
 
 import (
 	crand "crypto/rand"
+	"errors"
 	"fmt"
 	"io"
 	mrand "math/rand"
 	"os"
+	"path/filepath"
 	"sync"
 	"time"
 )
@@ -33,6 +35,9 @@ type FileLock struct {
 }
 
 func (self *FileLock) Lock() error {
+	if err := os.MkdirAll(filepath.Dir(self.lockfile), 0777); err != nil {
+		return err
+	}
 	file, err := os.OpenFile(self.lockfile, os.O_CREATE|os.O_WRONLY, 0644)
 	if err != nil {
 		return err
@@ -40,7 +45,7 @@ func (self *FileLock) Lock() error {
 	err = SysFlock(int(file.Fd()))
 	if err != nil {
 		file.Close()
-		return err
+		return errors.New("File already locked: " + self.lockfile)
 	}
 	file.Truncate(0)
 	file.Write([]byte(fmt.Sprintf("%d", os.Getpid())))
