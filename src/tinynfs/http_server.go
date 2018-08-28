@@ -37,7 +37,9 @@ func (self *HttpServer) Close() {
 }
 
 func (self *HttpServer) getHttpStatusCode(err error) int {
-	if err == os.ErrPermission {
+	if err == ErrHttpParam {
+		return http.StatusBadRequest
+	} else if err == os.ErrPermission {
 		return http.StatusForbidden
 	} else if err == os.ErrNotExist {
 		return http.StatusNotFound
@@ -86,13 +88,13 @@ func (self *HttpServer) handleApiGet(res http.ResponseWriter, req *http.Request)
 	)
 	defer self.httpSendByteData(res, req, &xerr, &xmime, &xdata)
 
-	filename := req.FormValue("filename")
-	if !strings.HasPrefix(filename, "/") || strings.HasSuffix(filename, "/") {
+	filepath := req.FormValue("filepath")
+	if !strings.HasPrefix(filepath, "/") || strings.HasSuffix(filepath, "/") {
 		xerr = ErrHttpParam
 		return
 	}
 
-	filemime, filedata, err := self.fs.ReadFile(filename)
+	filemime, filedata, err := self.fs.ReadFile(filepath)
 	if err != nil {
 		xerr = err
 		return
@@ -113,8 +115,8 @@ func (self *HttpServer) handleApiUpload(res http.ResponseWriter, req *http.Reque
 	)
 	defer self.httpSendJsonData(res, req, &xerr, xdata)
 
-	filename := req.FormValue("filename")
-	if !strings.HasPrefix(filename, "/") || strings.HasSuffix(filename, "/") {
+	filepath := req.FormValue("filepath")
+	if !strings.HasPrefix(filepath, "/") || strings.HasSuffix(filepath, "/") {
 		xerr = ErrHttpParam
 		return
 	}
@@ -130,14 +132,14 @@ func (self *HttpServer) handleApiUpload(res http.ResponseWriter, req *http.Reque
 		return
 	}
 	filemime := dataheader.Header.Get("Content-Type")
-	err = self.fs.WriteFile(filename, filemime, filedata)
+	err = self.fs.WriteFile(filepath, filemime, filedata)
 	if err != nil {
 		xerr = err
 		return
 	}
 	xdata["size"] = len(filedata)
 	xdata["mime"] = filemime
-	xdata["filename"] = filename
+	xdata["path"] = filepath
 }
 
 func NewHttpServer(fs *FileSystem, ipaddr string) (srv *HttpServer, err error) {

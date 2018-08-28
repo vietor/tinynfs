@@ -63,12 +63,12 @@ func (self *FileSystem) init() (err error) {
 	return nil
 }
 
-func (self *FileSystem) ReadFile(filename string) (filemime string, data []byte, err error) {
+func (self *FileSystem) ReadFile(filepath string) (filemime string, data []byte, err error) {
 	var node *FileNode = nil
 
 	self.directoryDB.View(func(tx *bolt.Tx) error {
 		bt := tx.Bucket(FileBucket)
-		v := bt.Get([]byte(filename))
+		v := bt.Get([]byte(filepath))
 		if v != nil {
 			err := json.Unmarshal(v, &node)
 			if err != nil {
@@ -88,7 +88,7 @@ func (self *FileSystem) ReadFile(filename string) (filemime string, data []byte,
 	return node.Mime, data, err
 }
 
-func (self *FileSystem) WriteFile(filename string, filemime string, data []byte) (err error) {
+func (self *FileSystem) WriteFile(filepath string, filemime string, data []byte) (err error) {
 	var node *FileNode = nil
 
 	hash := sha256.Sum256(data)
@@ -108,11 +108,11 @@ func (self *FileSystem) WriteFile(filename string, filemime string, data []byte)
 	if node == nil {
 		size := len(data)
 		if size > int(self.directLimit) {
-			directname, err := self.directStorage.WriteFile("", data)
+			directpath, err := self.directStorage.WriteFile("", data)
 			if err != nil {
 				return err
 			}
-			node = &FileNode{size, filemime, 0, directname, 0, 0}
+			node = &FileNode{size, filemime, 0, directpath, 0, 0}
 		} else {
 			volumeId, volumeOffset, err := self.volumeStroage.WriteFile(data)
 			if err != nil {
@@ -137,7 +137,7 @@ func (self *FileSystem) WriteFile(filename string, filemime string, data []byte)
 		if err != nil {
 			return err
 		}
-		return bt.Put([]byte(filename), b)
+		return bt.Put([]byte(filepath), b)
 	})
 }
 
