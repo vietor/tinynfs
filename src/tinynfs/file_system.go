@@ -26,9 +26,7 @@ type FileNode struct {
 
 type FileSystem struct {
 	root          string
-	enableHash    bool
-	directLimit   int64
-	volumeLimit   int64
+	config        *Storage
 	directoryDB   *bolt.DB
 	directStorage *DirectStorage
 	volumeStroage *VolumeStorage
@@ -41,7 +39,7 @@ func (self *FileSystem) init() (err error) {
 	if self.directStorage, err = NewDirectStorage(filepath.Join(self.root, "directs")); err != nil {
 		return err
 	}
-	if self.volumeStroage, err = NewVolumeStorage(filepath.Join(self.root, "volumes"), self.volumeLimit); err != nil {
+	if self.volumeStroage, err = NewVolumeStorage(filepath.Join(self.root, "volumes"), self.config.VolumeLimit); err != nil {
 		return err
 	}
 	self.directoryDB.Update(func(tx *bolt.Tx) error {
@@ -51,7 +49,7 @@ func (self *FileSystem) init() (err error) {
 		}
 		return nil
 	})
-	if self.enableHash {
+	if self.config.EnableHash {
 		self.directoryDB.Update(func(tx *bolt.Tx) error {
 			_, err := tx.CreateBucket(HashBucket)
 			if err != nil {
@@ -92,7 +90,7 @@ func (self *FileSystem) WriteFile(filepath string, filemime string, data []byte)
 	var node *FileNode = nil
 
 	hash := sha256.Sum256(data)
-	if self.enableHash {
+	if self.config.EnableHash {
 		self.directoryDB.View(func(tx *bolt.Tx) error {
 			bt := tx.Bucket(HashBucket)
 			v := bt.Get(hash[:])
@@ -107,7 +105,7 @@ func (self *FileSystem) WriteFile(filepath string, filemime string, data []byte)
 	}
 	if node == nil {
 		size := len(data)
-		if size > int(self.directLimit) {
+		if size > int(self.config.DirectLimit) {
 			directpath, err := self.directStorage.WriteFile("", data)
 			if err != nil {
 				return err
@@ -120,7 +118,7 @@ func (self *FileSystem) WriteFile(filepath string, filemime string, data []byte)
 			}
 			node = &FileNode{size, filemime, 1, "", volumeId, volumeOffset}
 		}
-		if self.enableHash {
+		if self.config.EnableHash {
 			self.directoryDB.Update(func(tx *bolt.Tx) error {
 				bt := tx.Bucket(HashBucket)
 				b, err := json.Marshal(node)
@@ -141,16 +139,15 @@ func (self *FileSystem) WriteFile(filepath string, filemime string, data []byte)
 	})
 }
 
-func NewFileSystem(root string) (fs *FileSystem, err error) {
+func NewFileSystem(root string, config *Storage) (fs *FileSystem, err error) {
 	if err = os.MkdirAll(root, 0777); err != nil {
 		return nil, err
 	}
 
-	fs = &FileSystem{}
-	fs.root = root
-	fs.enableHash = true
-	fs.directLimit = 4 * 1024 * 1024
-	fs.volumeLimit = 4 * 1024 * 1024 * 1024
+	fs = &FileSystem{
+		root:   root,
+		config: config,
+	}
 	if err = fs.init(); err != nil {
 		return nil, err
 	}

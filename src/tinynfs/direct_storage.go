@@ -39,6 +39,8 @@ func NewDirectStorage(root string) (storage *DirectStorage, err error) {
 	if err = os.MkdirAll(root, 0777); err != nil {
 		return nil, err
 	}
-	storage = &DirectStorage{root}
+	storage = &DirectStorage{
+		root: root,
+	}
 	return storage, nil
 }

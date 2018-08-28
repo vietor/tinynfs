@@ -40,19 +40,20 @@ func StartSignal(server *tinynfs.HttpServer) {
 }
 
 func main() {
-	datapath := filepath.Join(GetCWD(), "data")
-	locker := tinynfs.NewFileLock(filepath.Join(datapath, "tinynfsd.lock"))
+	cwd := GetCWD()
+	config := tinynfs.NewConfig(filepath.Join(cwd, "etc", "tinynfsd"))
+	locker := tinynfs.NewFileLock(filepath.Join(cwd, "data", "tinynfsd.lock"))
 	if err := locker.Lock(); err != nil {
 		fmt.Println(err)
 		return
 	}
 	defer locker.Unlock()
-	fs, err := tinynfs.NewFileSystem(datapath)
+	storage, err := tinynfs.NewFileSystem(filepath.Join(cwd, "data"), config.Storage)
 	if err != nil {
 		fmt.Println(err)
 		return
 	}
-	server, err := tinynfs.NewHttpServer(fs, ":8090")
+	server, err := tinynfs.NewHttpServer(storage, config.Network)
 	if err != nil {
 		fmt.Println(err)
 		return

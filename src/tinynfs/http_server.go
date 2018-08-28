@@ -11,8 +11,9 @@ import (
 )
 
 type HttpServer struct {
-	fs     *FileSystem
-	apiSrv net.Listener
+	config   *Network
+	storage  *FileSystem
+	listener net.Listener
 }
 
 func (self *HttpServer) startApi() {
@@ -24,15 +25,15 @@ func (self *HttpServer) startApi() {
 	)
 	serveMux.HandleFunc("/get", self.handleApiGet)
 	serveMux.HandleFunc("/upload", self.handleApiUpload)
-	err := server.Serve(self.apiSrv)
+	err := server.Serve(self.listener)
 	if err != nil {
 		fmt.Println(err)
 	}
 }
 
 func (self *HttpServer) Close() {
-	if self.apiSrv != nil {
-		self.apiSrv.Close()
+	if self.listener != nil {
+		self.listener.Close()
 	}
 }
 
@@ -94,7 +95,7 @@ func (self *HttpServer) handleApiGet(res http.ResponseWriter, req *http.Request)
 		return
 	}
 
-	filemime, filedata, err := self.fs.ReadFile(filepath)
+	filemime, filedata, err := self.storage.ReadFile(filepath)
 	if err != nil {
 		xerr = err
 		return
@@ -132,7 +133,7 @@ func (self *HttpServer) handleApiUpload(res http.ResponseWriter, req *http.Reque
 		return
 	}
 	filemime := dataheader.Header.Get("Content-Type")
-	err = self.fs.WriteFile(filepath, filemime, filedata)
+	err = self.storage.WriteFile(filepath, filemime, filedata)
 	if err != nil {
 		xerr = err
 		return
@@ -142,12 +143,13 @@ func (self *HttpServer) handleApiUpload(res http.ResponseWriter, req *http.Reque
 	xdata["path"] = filepath
 }
 
-func NewHttpServer(fs *FileSystem, ipaddr string) (srv *HttpServer, err error) {
+func NewHttpServer(storage *FileSystem, config *Network) (srv *HttpServer, err error) {
 	srv = &HttpServer{
-		fs: fs,
+		config:  config,
+		storage: storage,
 	}
 
-	if srv.apiSrv, err = net.Listen("tcp4", ipaddr); err != nil {
+	if srv.listener, err = net.Listen("tcp4", fmt.Sprintf(":%d", config.Port)); err != nil {
 		return nil, err
 	}
 
