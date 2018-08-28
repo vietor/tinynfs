@@ -3,7 +3,7 @@ package tinynfs
 import (
 	"encoding/json"
 	"fmt"
-	bolt "github.com/coreos/bbolt"
+	bolt "github.com/etcd-io/bbolt"
 	"os"
 	"path/filepath"
 	"time"

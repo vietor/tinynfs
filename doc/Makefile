@@ -5,7 +5,7 @@ export GOPATH = $(PROJECT_PATH)
 default: exec
 
 deps:
-	go get github.com/coreos/bbolt
+	go get github.com/etcd-io/bbolt
 
 exec:
 	go run src/tinynfsd.go
