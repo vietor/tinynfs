@@ -61,20 +61,35 @@ func (self *FileSystem) init() (err error) {
 	return nil
 }
 
-func (self *FileSystem) ReadFile(filepath string) (filemime string, data []byte, err error) {
-	var node *FileNode = nil
-
-	self.directoryDB.View(func(tx *bolt.Tx) error {
-		bt := tx.Bucket(FileBucket)
-		v := bt.Get([]byte(filepath))
+func (self *FileSystem) getFileNode(bucket []byte, key []byte) (*FileNode, error) {
+	var node *FileNode
+	err := self.directoryDB.View(func(tx *bolt.Tx) error {
+		bt := tx.Bucket(bucket)
+		v := bt.Get(key)
 		if v != nil {
-			err := json.Unmarshal(v, &node)
-			if err != nil {
-				node = nil
-			}
+			return json.Unmarshal(v, &node)
 		}
 		return nil
 	})
+	if err != nil {
+		node = nil
+	}
+	return node, err
+}
+
+func (self *FileSystem) putFileNode(bucket []byte, key []byte, node *FileNode) error {
+	return self.directoryDB.Update(func(tx *bolt.Tx) error {
+		bt := tx.Bucket(bucket)
+		b, err := json.Marshal(node)
+		if err != nil {
+			return err
+		}
+		return bt.Put(key, b)
+	})
+}
+
+func (self *FileSystem) ReadFile(filepath string) (filemime string, data []byte, err error) {
+	node, _ := self.getFileNode(FileBucket, []byte(filepath))
 	if node == nil {
 		return "", nil, os.ErrNotExist
 	}
@@ -91,17 +106,7 @@ func (self *FileSystem) WriteFile(filepath string, filemime string, data []byte)
 
 	hash := sha256.Sum256(data)
 	if self.config.EnableHash {
-		self.directoryDB.View(func(tx *bolt.Tx) error {
-			bt := tx.Bucket(HashBucket)
-			v := bt.Get(hash[:])
-			if v != nil {
-				err := json.Unmarshal(v, &node)
-				if err != nil {
-					node = nil
-				}
-			}
-			return nil
-		})
+		node, _ = self.getFileNode(HashBucket, hash[:])
 	}
 	if node == nil {
 		size := len(data)
@@ -119,14 +124,7 @@ func (self *FileSystem) WriteFile(filepath string, filemime string, data []byte)
 			node = &FileNode{size, filemime, 1, "", volumeId, volumeOffset}
 		}
 		if self.config.EnableHash {
-			self.directoryDB.Update(func(tx *bolt.Tx) error {
-				bt := tx.Bucket(HashBucket)
-				b, err := json.Marshal(node)
-				if err != nil {
-					return err
-				}
-				return bt.Put(hash[:], b)
-			})
+			self.putFileNode(HashBucket, hash[:], node)
 		}
 	}
 	return self.directoryDB.Update(func(tx *bolt.Tx) error {
@@ -140,19 +138,7 @@ func (self *FileSystem) WriteFile(filepath string, filemime string, data []byte)
 }
 
 func (self *FileSystem) DeleteFile(filepath string) (err error) {
-	var node *FileNode = nil
-
-	self.directoryDB.View(func(tx *bolt.Tx) error {
-		bt := tx.Bucket(FileBucket)
-		v := bt.Get([]byte(filepath))
-		if v != nil {
-			err := json.Unmarshal(v, &node)
-			if err != nil {
-				node = nil
-			}
-		}
-		return nil
-	})
+	node, _ := self.getFileNode(FileBucket, []byte(filepath))
 	if node == nil {
 		return os.ErrNotExist
 	}
