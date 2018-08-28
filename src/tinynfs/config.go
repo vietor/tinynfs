@@ -15,8 +15,8 @@ type Network struct {
 }
 
 type Storage struct {
-	DirectLimit int64
-	VolumeLimit int64
+	DirectMinSize int64
+	VolumeMaxSize int64
 }
 
 type Config struct {
@@ -66,8 +66,8 @@ func NewConfig(filepath string) *Config {
 			Port: 7119,
 		},
 		Storage: &Storage{
-			DirectLimit: 4 * 1024 * 1024,
-			VolumeLimit: 4 * 1024 * 1024 * 1024,
+			DirectMinSize: 4 * 1024 * 1024,
+			VolumeMaxSize: 4 * 1024 * 1024 * 1024,
 		},
 	}
 
@@ -104,19 +104,19 @@ func NewConfig(filepath string) *Config {
 			} else {
 				config.Network.Port = int(port)
 			}
-		case "storage.directlimit":
+		case "storage.direct.minsize":
 			size, err := parseBytes(value)
 			if err != nil {
 				log.Println("Ignore config line:" + line)
 			} else {
-				config.Storage.DirectLimit = int64(size)
+				config.Storage.DirectMinSize = int64(size)
 			}
-		case "storage.volumelimit":
+		case "storage.volume.maxsize":
 			size, err := parseBytes(value)
 			if err != nil {
 				log.Println("Ignore config line:" + line)
 			} else {
-				config.Storage.VolumeLimit = int64(size)
+				config.Storage.VolumeMaxSize = int64(size)
 			}
 		default:
 			log.Println("Ignore config line:" + line)

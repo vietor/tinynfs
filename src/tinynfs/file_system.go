@@ -38,7 +38,7 @@ func (self *FileSystem) init() (err error) {
 	if self.directStorage, err = NewDirectStorage(filepath.Join(self.root, "directs")); err != nil {
 		return err
 	}
-	if self.volumeStroage, err = NewVolumeStorage(filepath.Join(self.root, "volumes"), self.config.VolumeLimit); err != nil {
+	if self.volumeStroage, err = NewVolumeStorage(filepath.Join(self.root, "volumes"), self.config.VolumeMaxSize); err != nil {
 		return err
 	}
 	self.directoryDB.Update(func(tx *bolt.Tx) error {
@@ -104,7 +104,7 @@ func (self *FileSystem) WriteFile(filepath string, filemime string, data []byte)
 		node *FileNode
 		size = len(data)
 	)
-	if size > int(self.config.DirectLimit) {
+	if size > int(self.config.DirectMinSize) {
 		directpath, err := self.directStorage.WriteFile("", data)
 		if err != nil {
 			return err
