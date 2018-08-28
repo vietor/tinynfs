@@ -1,7 +1,6 @@
 package tinynfs
 
 import (
-	"crypto/sha256"
 	"encoding/json"
 	"fmt"
 	bolt "github.com/coreos/bbolt"
@@ -11,7 +10,6 @@ import (
 )
 
 var (
-	HashBucket = []byte("hashs")
 	FileBucket = []byte("files")
 )
 
@@ -49,15 +47,6 @@ func (self *FileSystem) init() (err error) {
 		}
 		return nil
 	})
-	if self.config.EnableHash {
-		self.directoryDB.Update(func(tx *bolt.Tx) error {
-			_, err := tx.CreateBucket(HashBucket)
-			if err != nil {
-				return fmt.Errorf("create bucket: %s", err)
-			}
-			return nil
-		})
-	}
 	return nil
 }
 
@@ -102,12 +91,8 @@ func (self *FileSystem) ReadFile(filepath string) (filemime string, data []byte,
 }
 
 func (self *FileSystem) WriteFile(filepath string, filemime string, data []byte) (err error) {
-	var node *FileNode = nil
+	var node *FileNode
 
-	hash := sha256.Sum256(data)
-	if self.config.EnableHash {
-		node, _ = self.getFileNode(HashBucket, hash[:])
-	}
 	if node == nil {
 		size := len(data)
 		if size > int(self.config.DirectLimit) {
@@ -122,9 +107,6 @@ func (self *FileSystem) WriteFile(filepath string, filemime string, data []byte)
 				return err
 			}
 			node = &FileNode{size, filemime, 1, "", volumeId, volumeOffset}
-		}
-		if self.config.EnableHash {
-			self.putFileNode(HashBucket, hash[:], node)
 		}
 	}
 	return self.directoryDB.Update(func(tx *bolt.Tx) error {

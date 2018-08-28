@@ -14,7 +14,6 @@ func TestFileSystem(t *testing.T) {
 
 	filename := "/a/a"
 	fs, err := NewFileSystem(filepath.Join("../../test", "data-fs"), &Stroage{
-		EnableHash:  true,
 		DirectLimit: 4 * 1024 * 1024,
 		VolumeLimit: 4 * 1024 * 1024 * 1024,
 	})

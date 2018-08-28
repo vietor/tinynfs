@@ -15,7 +15,6 @@ type Network struct {
 }
 
 type Storage struct {
-	EnableHash  bool
 	DirectLimit int64
 	VolumeLimit int64
 }
@@ -67,7 +66,6 @@ func NewConfig(filepath string) *Config {
 			Port: 7119,
 		},
 		Storage: &Storage{
-			EnableHash:  true,
 			DirectLimit: 4 * 1024 * 1024,
 			VolumeLimit: 4 * 1024 * 1024 * 1024,
 		},
@@ -105,13 +103,6 @@ func NewConfig(filepath string) *Config {
 				log.Println("Ignore config line:" + line)
 			} else {
 				config.Network.Port = int(port)
-			}
-		case "storage.enablehash":
-			enable, err := strconv.ParseBool(value)
-			if err != nil {
-				log.Println("Ignore config line:" + line)
-			} else {
-				config.Storage.EnableHash = enable
 			}
 		case "storage.directlimit":
 			size, err := parseBytes(value)
