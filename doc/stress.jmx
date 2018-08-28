@@ -48,12 +48,12 @@
                 <stringProp name="Argument.value">--myboundary&#xd;
 Content-Disposition: form-data; name=&quot;filepath&quot;&#xd;
 &#xd;
-/files/${filename}&#xd;
+/files/${__UUID}&#xd;
 --myboundary&#xd;
 Content-Disposition: form-data; name=&quot;filedata&quot;; filename=&quot;upload.txt&quot;&#xd;
 Content-Type: text/plan&#xd;
 &#xd;
-${filedata}&#xd;
+${__RandomString(16888,0123456789abcdefghijklmnopqrstuvwxyz,)}&#xd;
 --myboundary--</stringProp>
                 <stringProp name="Argument.metadata">=</stringProp>
               </elementProp>
@@ -82,15 +82,6 @@ ${filedata}&#xd;
               </elementProp>
             </collectionProp>
           </HeaderManager>
-          <hashTree/>
-          <JSR223PreProcessor guiclass="TestBeanGUI" testclass="JSR223PreProcessor" testname="pre vars" enabled="true">
-            <stringProp name="cacheKey">true</stringProp>
-            <stringProp name="filename"></stringProp>
-            <stringProp name="parameters"></stringProp>
-            <stringProp name="script">vars.put(&quot;filename&quot;,UUID.randomUUID().toString());
-vars.put(&quot;filedata&quot;,UUID.randomUUID().toString());</stringProp>
-            <stringProp name="scriptLanguage">groovy</stringProp>
-          </JSR223PreProcessor>
           <hashTree/>
           <JSONPostProcessor guiclass="JSONPostProcessorGui" testclass="JSONPostProcessor" testname="get path" enabled="true">
             <stringProp name="JSONPostProcessor.referenceNames">filepath</stringProp>
