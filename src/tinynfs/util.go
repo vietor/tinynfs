@@ -50,7 +50,7 @@ func (self *FileLock) Lock() error {
 	err = SysFlock(int(file.Fd()))
 	if err != nil {
 		file.Close()
-		return fmt.Errorf("File already locked: %s", self.lockfile)
+		return fmt.Errorf("file already locked: %s", self.lockfile)
 	}
 	file.Truncate(0)
 	file.Write([]byte(fmt.Sprintf("%d", os.Getpid())))

@@ -13,11 +13,11 @@ func TestRandHex(t *testing.T) {
 	}
 }
 
-func TestGetDiskUsage(t *testing.T) {
-	info, err := GetDiskUsage("../../test")
+func TestGetDiskStat(t *testing.T) {
+	info, err := GetDiskStat("../../test")
 	if err != nil {
-		t.Error("SysDiskUsage error", err)
+		t.Error("GetDiskStat error", err)
 	} else {
-		t.Logf("SysDiskUsage success: %d, %d, %d", info.Size, info.Used, info.Free)
+		t.Logf("GetDiskStat success: %d, %d, %d", info.Size, info.Used, info.Free)
 	}
 }

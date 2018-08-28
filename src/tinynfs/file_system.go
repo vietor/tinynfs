@@ -99,6 +99,13 @@ func (self *FileSystem) ReadFile(filepath string) (filemime string, data []byte,
 }
 
 func (self *FileSystem) WriteFile(filepath string, filemime string, data []byte) (err error) {
+	dstat, err := GetDiskStat(self.root)
+	if err != nil {
+		return err
+	} else if dstat.Free < uint64(self.config.DiskRemain) {
+		return ErrDiskFull
+	}
+
 	oldnode, _ := self.getFileNode(fileBucket, []byte(filepath))
 	var (
 		node *FileNode

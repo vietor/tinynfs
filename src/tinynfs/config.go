@@ -15,6 +15,7 @@ type Network struct {
 }
 
 type Storage struct {
+	DiskRemain    int64
 	DirectMinSize int64
 	VolumeMaxSize int64
 }
@@ -66,8 +67,9 @@ func NewConfig(filepath string) *Config {
 			Port: 7119,
 		},
 		Storage: &Storage{
-			DirectMinSize: 4 * 1024 * 1024,
-			VolumeMaxSize: 4 * 1024 * 1024 * 1024,
+			DiskRemain:    50 * 1024 * 1024,
+			DirectMinSize: 5 * 1024 * 1024,
+			VolumeMaxSize: 5 * 1024 * 1024 * 1024,
 		},
 	}
 
@@ -103,6 +105,13 @@ func NewConfig(filepath string) *Config {
 				log.Println("Ignore config line:" + line)
 			} else {
 				config.Network.Port = int(port)
+			}
+		case "storage.disk.remain":
+			size, err := parseBytes(value)
+			if err != nil {
+				log.Println("Ignore config line:" + line)
+			} else {
+				config.Storage.DiskRemain = int64(size)
 			}
 		case "storage.direct.minsize":
 			size, err := parseBytes(value)

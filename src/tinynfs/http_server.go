@@ -41,6 +41,8 @@ func (self *HttpServer) Close() {
 func (self *HttpServer) getHttpStatusCode(err error) int {
 	if err == ErrParam {
 		return http.StatusBadRequest
+	} else if err == ErrDiskFull {
+		return http.StatusPaymentRequired
 	} else if err == os.ErrPermission {
 		return http.StatusForbidden
 	} else if err == os.ErrNotExist {
@@ -52,7 +54,7 @@ func (self *HttpServer) getHttpStatusCode(err error) int {
 func (self *HttpServer) httpSendByteData(res http.ResponseWriter, req *http.Request, err *error, mime *string, data *[]byte) {
 	if *err != nil {
 		statusCode := self.getHttpStatusCode(*err)
-		http.Error(res, http.StatusText(statusCode), statusCode)
+		http.Error(res, (*err).Error(), statusCode)
 	} else {
 		if len(*mime) > 0 {
 			res.Header().Set("Content-Type", *mime)
