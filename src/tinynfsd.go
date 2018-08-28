@@ -40,8 +40,15 @@ func StartSignal(server *tinynfs.HttpServer) {
 }
 
 func main() {
-	cwd := GetCWD()
-	fs, err := tinynfs.NewFileSystem(filepath.Join(cwd, "data"))
+	datapath := filepath.Join(GetCWD(), "data")
+	locker := tinynfs.NewFileLock(filepath.Join(datapath, "tinynfsd.lock"))
+	if err := locker.Lock(); err != nil {
+		fmt.Println("Already running")
+		return
+	}
+	defer locker.Unlock()
+
+	fs, err := tinynfs.NewFileSystem(datapath)
 	if err != nil {
 		fmt.Println(err)
 		return

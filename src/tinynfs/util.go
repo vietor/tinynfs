@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	mrand "math/rand"
+	"os"
 	"sync"
 	"time"
 )
@@ -24,4 +25,39 @@ func RandHex(bytes int) (hex string) {
 		myRand.lock.Unlock()
 	}
 	return fmt.Sprintf("%x", randBytes)
+}
+
+type FileLock struct {
+	file     *os.File
+	lockfile string
+}
+
+func (self *FileLock) Lock() error {
+	file, err := os.OpenFile(self.lockfile, os.O_CREATE|os.O_WRONLY, 0644)
+	if err != nil {
+		return err
+	}
+	err = SysFlock(int(file.Fd()))
+	if err != nil {
+		file.Close()
+		return err
+	}
+	file.Truncate(0)
+	file.Write([]byte(fmt.Sprintf("%d", os.Getpid())))
+	self.file = file
+	return nil
+}
+
+func (self *FileLock) Unlock() {
+	if self.file != nil {
+		SysUnflock(int(self.file.Fd()))
+		self.file.Close()
+		self.file = nil
+	}
+}
+
+func NewFileLock(filepath string) *FileLock {
+	return &FileLock{
+		lockfile: filepath,
+	}
 }
