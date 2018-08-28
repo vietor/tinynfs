@@ -1,4 +1,4 @@
-package tinynfsd
+package main
 
 import (
 	"fmt"
