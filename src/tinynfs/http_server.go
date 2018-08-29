@@ -173,7 +173,7 @@ func (self *HttpServer) handleApiDelete(res http.ResponseWriter, req *http.Reque
 }
 
 func NewHttpServer(storage *FileSystem, config *Network) (*HttpServer, error) {
-	listener, err := net.Listen("tcp4", fmt.Sprintf(":%d", config.Port))
+	listener, err := net.Listen(config.Tcp, config.Bind)
 	if err != nil {
 		return nil, err
 	}

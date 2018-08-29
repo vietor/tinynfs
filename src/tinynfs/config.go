@@ -11,7 +11,8 @@ import (
 )
 
 type Network struct {
-	Port int
+	Tcp  string
+	Bind string
 }
 
 type Storage struct {
@@ -64,7 +65,8 @@ func parseBytes(s string) (uint64, error) {
 func NewConfig(filepath string) *Config {
 	config := &Config{
 		Network: &Network{
-			Port: 7119,
+			Tcp:  "tcp4",
+			Bind: ":7119",
 		},
 		Storage: &Storage{
 			DiskRemain:    50 * 1024 * 1024,
@@ -99,12 +101,17 @@ func NewConfig(filepath string) *Config {
 			continue
 		}
 		switch key {
-		case "network.port":
-			port, err := strconv.ParseUint(value, 10, 32)
-			if err != nil {
+		case "network.tcp":
+			if m, _ := regexp.MatchString("^(tcp|tcp4|tcp6)$", value); !m {
 				log.Println("Ignore config line:" + line)
 			} else {
-				config.Network.Port = int(port)
+				config.Network.Tcp = value
+			}
+		case "network.bind":
+			if m, _ := regexp.MatchString("^[:0-9a-zA-Z]*:[0-9]+$", value); !m {
+				log.Println("Ignore config line:" + line)
+			} else {
+				config.Network.Bind = value
 			}
 		case "storage.disk.remain":
 			size, err := parseBytes(value)
