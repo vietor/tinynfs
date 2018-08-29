@@ -11,6 +11,10 @@ import (
 	"time"
 )
 
+const (
+	VolumeValidateTimestamp = 1530000000000000000
+)
+
 type VolumeFile struct {
 	id    int64
 	size  int64
@@ -28,6 +32,9 @@ type VolumeStorage struct {
 }
 
 func (self *VolumeStorage) init() error {
+	if time.Now().UnixNano() < VolumeValidateTimestamp {
+		return ErrTimestamp
+	}
 	files, err := ioutil.ReadDir(self.root)
 	if err != nil {
 		return err
@@ -36,7 +43,9 @@ func (self *VolumeStorage) init() error {
 		name := file.Name()
 		if m, _ := regexp.MatchString("^volume-[0-9]+$", name); m {
 			id, err := strconv.ParseInt(name[7:], 10, 64)
-			if err == nil {
+			if err != nil || id < VolumeValidateTimestamp {
+				log.Println(fmt.Sprintf("not volume file %s", name))
+			} else {
 				v, err := self.mkVolumeFile(id, file.Size())
 				if err != nil {
 					log.Println(fmt.Sprintf("load failed %s %s", name, err))
@@ -53,6 +62,13 @@ func (self *VolumeStorage) init() error {
 }
 
 func (self *VolumeStorage) Close() {
+	self.volumeLock.Lock()
+	defer self.volumeLock.Unlock()
+
+	for _, v := range self.volumeMap {
+		v.rFile.Close()
+		v.wFile.Close()
+	}
 }
 
 func (self *VolumeStorage) mkVolumeFile(id int64, size int64) (*VolumeFile, error) {
