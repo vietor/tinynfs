@@ -98,7 +98,7 @@ func (self *HttpServer) handleApiGet(res http.ResponseWriter, req *http.Request)
 		return
 	}
 
-	filemime, filedata, err := self.storage.ReadFile(filepath)
+	filemime, _, filedata, err := self.storage.ReadFile(filepath)
 	if err != nil {
 		xerr = err
 		return
@@ -136,7 +136,7 @@ func (self *HttpServer) handleApiUpload(res http.ResponseWriter, req *http.Reque
 		return
 	}
 	filemime := dataheader.Header.Get("Content-Type")
-	err = self.storage.WriteFile(filepath, filemime, filedata)
+	err = self.storage.WriteFile(filepath, filemime, "", filedata)
 	if err != nil {
 		xerr = err
 		return

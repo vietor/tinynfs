@@ -17,6 +17,7 @@ var (
 type FileNode struct {
 	Size         int    `json:"size"`
 	Mime         string `json:"mime"`
+	Metadata     string `json:"metadata"`
 	Storage      int    `json:"storage"` // 0-direct, 1-volume
 	DirectFile   string `json:"direct_file"`
 	VolumeId     int64  `json:"volume_id"`
@@ -85,20 +86,20 @@ func (self *FileSystem) putFileNode(bucket []byte, key []byte, node *FileNode) e
 	})
 }
 
-func (self *FileSystem) ReadFile(filepath string) (filemime string, data []byte, err error) {
+func (self *FileSystem) ReadFile(filepath string) (filemime string, metadata string, data []byte, err error) {
 	node, _ := self.getFileNode(fileBucket, []byte(filepath))
 	if node == nil {
-		return "", nil, os.ErrNotExist
+		return "", "", nil, os.ErrNotExist
 	}
 	if node.Storage == 0 {
 		data, err = self.directStorage.ReadFile(node.DirectFile)
 	} else {
 		data, err = self.volumeStroage.ReadFile(node.VolumeId, node.VolumeOffset, node.Size)
 	}
-	return node.Mime, data, err
+	return node.Mime, node.Metadata, data, err
 }
 
-func (self *FileSystem) WriteFile(filepath string, filemime string, data []byte) (err error) {
+func (self *FileSystem) WriteFile(filepath string, filemime string, metadata string, data []byte) (err error) {
 	dstat, err := GetDiskStat(self.root)
 	if err != nil {
 		return err
@@ -116,13 +117,13 @@ func (self *FileSystem) WriteFile(filepath string, filemime string, data []byte)
 		if err != nil {
 			return err
 		}
-		node = &FileNode{size, filemime, 0, directpath, 0, 0}
+		node = &FileNode{size, filemime, metadata, 0, directpath, 0, 0}
 	} else {
 		volumeId, volumeOffset, err := self.volumeStroage.WriteFile(data)
 		if err != nil {
 			return err
 		}
-		node = &FileNode{size, filemime, 1, "", volumeId, volumeOffset}
+		node = &FileNode{size, filemime, metadata, 1, "", volumeId, volumeOffset}
 	}
 	err = self.putFileNode(fileBucket, []byte(filepath), node)
 	if err == nil && oldnode != nil {
