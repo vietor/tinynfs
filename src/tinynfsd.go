@@ -20,7 +20,7 @@ func GetCWD() string {
 	return cwd
 }
 
-func StartSignal(server *tinynfs.HttpServer) {
+func StartSignal(server *tinynfs.HttpServer, storage *tinynfs.FileSystem) {
 	var (
 		sc chan os.Signal
 		s  os.Signal
@@ -32,6 +32,7 @@ func StartSignal(server *tinynfs.HttpServer) {
 		switch s {
 		case syscall.SIGQUIT, syscall.SIGTERM, syscall.SIGINT, syscall.SIGSTOP:
 			server.Close()
+			storage.Close()
 			return
 		default:
 			return
@@ -56,7 +57,8 @@ func main() {
 	server, err := tinynfs.NewHttpServer(storage, config.Network)
 	if err != nil {
 		fmt.Println(err)
+		storage.Close()
 		return
 	}
-	StartSignal(server)
+	StartSignal(server, storage)
 }

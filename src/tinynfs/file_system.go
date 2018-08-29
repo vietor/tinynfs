@@ -27,30 +27,38 @@ type FileNode struct {
 type FileSystem struct {
 	root          string
 	config        *Storage
-	directoryDB   *bolt.DB
+	storageDB     *bolt.DB
 	directStorage *DirectStorage
 	volumeStroage *VolumeStorage
 }
 
 func (self *FileSystem) init() error {
-	var err error
-	if self.directoryDB, err = bolt.Open(filepath.Join(self.root, "directory.db"), 0644, &bolt.Options{Timeout: 1 * time.Second}); err != nil {
+	db, err := bolt.Open(filepath.Join(self.root, "storage.db"), 0644, &bolt.Options{Timeout: 1 * time.Second})
+	if err != nil {
 		return err
 	}
-	if self.directStorage, err = NewDirectStorage(filepath.Join(self.root, "directs")); err != nil {
+	ds, err := NewDirectStorage(filepath.Join(self.root, "directs"))
+	if err != nil {
+		db.Close()
 		return err
 	}
-	if self.volumeStroage, err = NewVolumeStorage(filepath.Join(self.root, "volumes"), self.config.VolumeMaxSize); err != nil {
+	vs, err := NewVolumeStorage(filepath.Join(self.root, "volumes"), self.config.VolumeMaxSize)
+	if err != nil {
+		db.Close()
+		ds.Close()
 		return err
 	}
-	self.directoryDB.Update(func(tx *bolt.Tx) error {
+	self.storageDB = db
+	self.directStorage = ds
+	self.volumeStroage = vs
+	self.storageDB.Update(func(tx *bolt.Tx) error {
 		_, err := tx.CreateBucket(fileBucket)
 		if err != nil {
 			return fmt.Errorf("create bucket: %s", err)
 		}
 		return nil
 	})
-	self.directoryDB.Update(func(tx *bolt.Tx) error {
+	self.storageDB.Update(func(tx *bolt.Tx) error {
 		_, err := tx.CreateBucket(deleteFileBucket)
 		if err != nil {
 			return fmt.Errorf("create bucket: %s", err)
@@ -60,9 +68,21 @@ func (self *FileSystem) init() error {
 	return nil
 }
 
+func (self *FileSystem) Close() {
+	if self.storageDB != nil {
+		self.storageDB.Close()
+	}
+	if self.directStorage != nil {
+		self.directStorage.Close()
+	}
+	if self.volumeStroage != nil {
+		self.volumeStroage.Close()
+	}
+}
+
 func (self *FileSystem) getFileNode(bucket []byte, key []byte) (*FileNode, error) {
 	var node *FileNode
-	err := self.directoryDB.View(func(tx *bolt.Tx) error {
+	err := self.storageDB.View(func(tx *bolt.Tx) error {
 		bt := tx.Bucket(bucket)
 		v := bt.Get(key)
 		if v != nil {
@@ -77,7 +97,7 @@ func (self *FileSystem) getFileNode(bucket []byte, key []byte) (*FileNode, error
 }
 
 func (self *FileSystem) putFileNode(bucket []byte, key []byte, node *FileNode) error {
-	return self.directoryDB.Update(func(tx *bolt.Tx) error {
+	return self.storageDB.Update(func(tx *bolt.Tx) error {
 		bt := tx.Bucket(bucket)
 		b, err := json.Marshal(node)
 		if err != nil {
@@ -143,7 +163,7 @@ func (self *FileSystem) DeleteFile(filepath string) error {
 		return os.ErrNotExist
 	}
 
-	err := self.directoryDB.Update(func(tx *bolt.Tx) error {
+	err := self.storageDB.Update(func(tx *bolt.Tx) error {
 		bt := tx.Bucket(fileBucket)
 		return bt.Delete([]byte(filepath))
 	})

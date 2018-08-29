@@ -52,6 +52,9 @@ func (self *VolumeStorage) init() error {
 	return nil
 }
 
+func (self *VolumeStorage) Close() {
+}
+
 func (self *VolumeStorage) mkVolumeFile(id int64, size int64) (*VolumeFile, error) {
 	filepath := self.root + fmt.Sprintf("/volume-%d", id)
 	w, err := os.OpenFile(filepath, os.O_CREATE|os.O_WRONLY, 0644)

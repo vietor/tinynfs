@@ -11,6 +11,9 @@ type DirectStorage struct {
 	root string
 }
 
+func (self *DirectStorage) Close() {
+}
+
 func (self *DirectStorage) ReadFile(filepath string) ([]byte, error) {
 	return ioutil.ReadFile(self.root + "/" + filepath)
 }
