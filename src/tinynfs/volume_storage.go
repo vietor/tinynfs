@@ -17,11 +17,11 @@ type VolumeInfo struct {
 }
 
 type VolumeStorage struct {
-	root        string
-	limit       int64
-	volumes     map[int64]*VolumeInfo
-	fullVolumes map[int64]*VolumeInfo
-	volumeLock  sync.Mutex
+	root       string
+	limit      int64
+	volumes    map[int64]*VolumeInfo
+	volumeMap  map[int64]*VolumeInfo
+	volumeLock sync.Mutex
 }
 
 func (self *VolumeStorage) init() (err error) {
@@ -40,9 +40,8 @@ func (self *VolumeStorage) init() (err error) {
 				}
 				if v.size < self.limit {
 					self.volumes[v.id] = v
-				} else {
-					self.fullVolumes[v.id] = v
 				}
+				self.volumeMap[v.id] = v
 			}
 		}
 	}
@@ -67,22 +66,19 @@ func (self *VolumeStorage) getFreeVolume() *VolumeInfo {
 		size: 0,
 	}
 	self.volumes[v.id] = v
+	self.volumeMap[v.id] = v
 	return v
 }
 
-func (self *VolumeStorage) classifyVolume(v *VolumeInfo) {
-	if v.size < self.limit {
-		return
+func (self *VolumeStorage) ReadFile(id int64, offset int64, size int) (data []byte, err error) {
+	self.volumeLock.Lock()
+	v := self.volumeMap[id]
+	self.volumeLock.Unlock()
+	if v == nil {
+		return nil, os.ErrNotExist
 	}
 
-	self.volumeLock.Lock()
-	self.fullVolumes[v.id] = v
-	delete(self.volumes, v.id)
-	self.volumeLock.Unlock()
-}
-
-func (self *VolumeStorage) ReadFile(id int64, offset int64, size int) (data []byte, err error) {
-	f, err := os.Open(self.getFilePath(id))
+	f, err := os.Open(self.getFilePath(v.id))
 	if err != nil {
 		return nil, err
 	}
@@ -113,7 +109,11 @@ func (self *VolumeStorage) WriteFile(data []byte) (id int64, offset int64, err e
 		return 0, 0, err
 	}
 	v.size += int64(n)
-	self.classifyVolume(v)
+	if v.size >= self.limit {
+		self.volumeLock.Lock()
+		delete(self.volumes, v.id)
+		self.volumeLock.Unlock()
+	}
 	return v.id, offset, nil
 }
 
@@ -123,10 +123,10 @@ func NewVolumeStorage(root string, limit int64) (storage *VolumeStorage, err err
 	}
 
 	storage = &VolumeStorage{
-		root:        root,
-		limit:       limit,
-		volumes:     map[int64]*VolumeInfo{},
-		fullVolumes: map[int64]*VolumeInfo{},
+		root:      root,
+		limit:     limit,
+		volumes:   map[int64]*VolumeInfo{},
+		volumeMap: map[int64]*VolumeInfo{},
 	}
 	if err = storage.init(); err != nil {
 		return nil, err
