@@ -1,8 +1,8 @@
 package tinynfs
 
 import (
-	"unsafe"
 	"syscall"
+	"unsafe"
 )
 
 var (
@@ -20,7 +20,7 @@ const (
 	errLockViolation syscall.Errno = 0x21
 )
 
-func lockFileEx(h syscall.Handle, flags, reserved, locklow, lockhigh uint32, ol *syscall.Overlapped) (err error) {
+func lockFileEx(h syscall.Handle, flags, reserved, locklow, lockhigh uint32, ol *syscall.Overlapped) error {
 	r, _, err := procLockFileEx.Call(uintptr(h), uintptr(flags), uintptr(reserved), uintptr(locklow), uintptr(lockhigh), uintptr(unsafe.Pointer(ol)))
 	if r == 0 {
 		return err
@@ -28,7 +28,7 @@ func lockFileEx(h syscall.Handle, flags, reserved, locklow, lockhigh uint32, ol 
 	return nil
 }
 
-func unlockFileEx(h syscall.Handle, reserved, locklow, lockhigh uint32, ol *syscall.Overlapped) (err error) {
+func unlockFileEx(h syscall.Handle, reserved, locklow, lockhigh uint32, ol *syscall.Overlapped) error {
 	r, _, err := procUnlockFileEx.Call(uintptr(h), uintptr(reserved), uintptr(locklow), uintptr(lockhigh), uintptr(unsafe.Pointer(ol)), 0)
 	if r == 0 {
 		return err
@@ -52,7 +52,7 @@ func SysUnflock(fd int) error {
 	return unlockFileEx(syscall.Handle(fd), 0, 1, 0, &syscall.Overlapped{})
 }
 
-func GetDiskStat(path string) (info *DiskStat, err error) {
+func GetDiskStat(path string) (*DiskStat, error) {
 	lpFreeBytesAvailable := int64(0)
 	lpTotalNumberOfBytes := int64(0)
 	lpTotalNumberOfFreeBytes := int64(0)
@@ -63,7 +63,7 @@ func GetDiskStat(path string) (info *DiskStat, err error) {
 	if r == 0 {
 		return nil, err
 	}
-	info = &DiskStat{
+	info := &DiskStat{
 		Size: uint64(lpTotalNumberOfBytes),
 		Free: uint64(lpTotalNumberOfFreeBytes),
 	}

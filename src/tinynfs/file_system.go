@@ -32,7 +32,8 @@ type FileSystem struct {
 	volumeStroage *VolumeStorage
 }
 
-func (self *FileSystem) init() (err error) {
+func (self *FileSystem) init() error {
+	var err error
 	if self.directoryDB, err = bolt.Open(filepath.Join(self.root, "directory.db"), 0644, &bolt.Options{Timeout: 1 * time.Second}); err != nil {
 		return err
 	}
@@ -86,11 +87,15 @@ func (self *FileSystem) putFileNode(bucket []byte, key []byte, node *FileNode) e
 	})
 }
 
-func (self *FileSystem) ReadFile(filepath string) (filemime string, metadata string, data []byte, err error) {
+func (self *FileSystem) ReadFile(filepath string) (string, string, []byte, error) {
 	node, _ := self.getFileNode(fileBucket, []byte(filepath))
 	if node == nil {
 		return "", "", nil, os.ErrNotExist
 	}
+	var (
+		data []byte
+		err  error
+	)
 	if node.Storage == 0 {
 		data, err = self.directStorage.ReadFile(node.DirectFile)
 	} else {
@@ -99,7 +104,7 @@ func (self *FileSystem) ReadFile(filepath string) (filemime string, metadata str
 	return node.Mime, node.Metadata, data, err
 }
 
-func (self *FileSystem) WriteFile(filepath string, filemime string, metadata string, data []byte) (err error) {
+func (self *FileSystem) WriteFile(filepath string, filemime string, metadata string, data []byte) error {
 	dstat, err := GetDiskStat(self.root)
 	if err != nil {
 		return err
@@ -132,13 +137,13 @@ func (self *FileSystem) WriteFile(filepath string, filemime string, metadata str
 	return err
 }
 
-func (self *FileSystem) DeleteFile(filepath string) (err error) {
+func (self *FileSystem) DeleteFile(filepath string) error {
 	node, _ := self.getFileNode(fileBucket, []byte(filepath))
 	if node == nil {
 		return os.ErrNotExist
 	}
 
-	err = self.directoryDB.Update(func(tx *bolt.Tx) error {
+	err := self.directoryDB.Update(func(tx *bolt.Tx) error {
 		bt := tx.Bucket(fileBucket)
 		return bt.Delete([]byte(filepath))
 	})
@@ -148,16 +153,16 @@ func (self *FileSystem) DeleteFile(filepath string) (err error) {
 	return err
 }
 
-func NewFileSystem(root string, config *Storage) (fs *FileSystem, err error) {
-	if err = os.MkdirAll(root, 0777); err != nil {
+func NewFileSystem(root string, config *Storage) (*FileSystem, error) {
+	if err := os.MkdirAll(root, 0777); err != nil {
 		return nil, err
 	}
 
-	fs = &FileSystem{
+	fs := &FileSystem{
 		root:   root,
 		config: config,
 	}
-	if err = fs.init(); err != nil {
+	if err := fs.init(); err != nil {
 		return nil, err
 	}
 	return fs, nil

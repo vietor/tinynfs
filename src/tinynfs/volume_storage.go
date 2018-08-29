@@ -3,6 +3,7 @@ package tinynfs
 import (
 	"fmt"
 	"io/ioutil"
+	"log"
 	"os"
 	"regexp"
 	"strconv"
@@ -26,7 +27,7 @@ type VolumeStorage struct {
 	volumeLock sync.Mutex
 }
 
-func (self *VolumeStorage) init() (err error) {
+func (self *VolumeStorage) init() error {
 	files, err := ioutil.ReadDir(self.root)
 	if err != nil {
 		return err
@@ -37,7 +38,9 @@ func (self *VolumeStorage) init() (err error) {
 			id, err := strconv.ParseInt(name[7:], 10, 64)
 			if err == nil {
 				v, err := self.mkVolumeFile(id, file.Size())
-				if err == nil {
+				if err != nil {
+					log.Println(fmt.Sprintf("load failed %s %s", name, err))
+				} else {
 					if v.size < self.limit {
 						self.volumes[v.id] = v
 					}
@@ -69,7 +72,7 @@ func (self *VolumeStorage) mkVolumeFile(id int64, size int64) (*VolumeFile, erro
 	return v, nil
 }
 
-func (self *VolumeStorage) getFreeVolume() (*VolumeFile, error) {
+func (self *VolumeStorage) mkWriteVolume() (*VolumeFile, error) {
 	self.volumeLock.Lock()
 	defer self.volumeLock.Unlock()
 
@@ -86,7 +89,7 @@ func (self *VolumeStorage) getFreeVolume() (*VolumeFile, error) {
 	return v, err
 }
 
-func (self *VolumeStorage) ReadFile(id int64, offset int64, size int) (data []byte, err error) {
+func (self *VolumeStorage) ReadFile(id int64, offset int64, size int) ([]byte, error) {
 	self.volumeLock.Lock()
 	v := self.volumeMap[id]
 	self.volumeLock.Unlock()
@@ -94,16 +97,15 @@ func (self *VolumeStorage) ReadFile(id int64, offset int64, size int) (data []by
 		return nil, os.ErrNotExist
 	}
 
-	data = make([]byte, size)
-	_, err = v.rFile.ReadAt(data, offset)
-	if err != nil {
+	data := make([]byte, size)
+	if _, err := v.rFile.ReadAt(data, offset); err != nil {
 		return nil, err
 	}
 	return data, nil
 }
 
-func (self *VolumeStorage) WriteFile(data []byte) (id int64, offset int64, err error) {
-	v, err := self.getFreeVolume()
+func (self *VolumeStorage) WriteFile(data []byte) (int64, int64, error) {
+	v, err := self.mkWriteVolume()
 	if err != nil {
 		return 0, 0, err
 	}
@@ -111,7 +113,7 @@ func (self *VolumeStorage) WriteFile(data []byte) (id int64, offset int64, err e
 	v.wLock.Lock()
 	defer v.wLock.Unlock()
 
-	offset = v.size
+	offset := v.size
 	n, err := v.wFile.WriteAt(data, offset)
 	if err != nil {
 		return 0, 0, err
@@ -126,18 +128,18 @@ func (self *VolumeStorage) WriteFile(data []byte) (id int64, offset int64, err e
 	return v.id, offset, nil
 }
 
-func NewVolumeStorage(root string, limit int64) (storage *VolumeStorage, err error) {
-	if err = os.MkdirAll(root, 0777); err != nil {
+func NewVolumeStorage(root string, limit int64) (*VolumeStorage, error) {
+	if err := os.MkdirAll(root, 0777); err != nil {
 		return nil, err
 	}
 
-	storage = &VolumeStorage{
+	storage := &VolumeStorage{
 		root:      root,
 		limit:     limit,
 		volumes:   map[int64]*VolumeFile{},
 		volumeMap: map[int64]*VolumeFile{},
 	}
-	if err = storage.init(); err != nil {
+	if err := storage.init(); err != nil {
 		return nil, err
 	}
 	return storage, nil

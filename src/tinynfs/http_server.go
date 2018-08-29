@@ -172,14 +172,16 @@ func (self *HttpServer) handleApiDelete(res http.ResponseWriter, req *http.Reque
 	xdata["path"] = filepath
 }
 
-func NewHttpServer(storage *FileSystem, config *Network) (srv *HttpServer, err error) {
-	srv = &HttpServer{
-		config:  config,
-		storage: storage,
+func NewHttpServer(storage *FileSystem, config *Network) (*HttpServer, error) {
+	listener, err := net.Listen("tcp4", fmt.Sprintf(":%d", config.Port))
+	if err != nil {
+		return nil, err
 	}
 
-	if srv.listener, err = net.Listen("tcp4", fmt.Sprintf(":%d", config.Port)); err != nil {
-		return nil, err
+	srv := &HttpServer{
+		config:   config,
+		storage:  storage,
+		listener: listener,
 	}
 
 	go srv.startApi()

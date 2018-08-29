@@ -14,13 +14,12 @@ func SysUnflock(fd int) error {
 	return syscall.Flock(fd, syscall.LOCK_UN)
 }
 
-func GetDiskStat(path string) (info *DiskStat, err error) {
+func GetDiskStat(path string) (*DiskStat, error) {
 	fs := syscall.Statfs_t{}
-	err = syscall.Statfs(path, &fs)
-	if err != nil {
+	if err := syscall.Statfs(path, &fs); err != nil {
 		return nil, err
 	}
-	info = &DiskStat{
+	info := &DiskStat{
 		Size: fs.Blocks * uint64(fs.Bsize),
 		Free: fs.Bfree * uint64(fs.Bsize),
 	}

@@ -24,7 +24,7 @@ var myRand = struct {
 	rand: mrand.New(mrand.NewSource(time.Now().UnixNano())),
 }
 
-func RandHex(bytes int) (hex string) {
+func RandHex(bytes int) string {
 	randBytes := make([]byte, bytes)
 	if _, err := io.ReadFull(crand.Reader, randBytes); err != nil {
 		myRand.lock.Lock()
@@ -47,8 +47,7 @@ func (self *FileLock) Lock() error {
 	if err != nil {
 		return err
 	}
-	err = SysFlock(int(file.Fd()))
-	if err != nil {
+	if err = SysFlock(int(file.Fd())); err != nil {
 		file.Close()
 		return fmt.Errorf("file already locked: %s", self.lockfile)
 	}
