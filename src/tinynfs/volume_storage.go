@@ -13,6 +13,8 @@ import (
 type VolumeInfo struct {
 	id    int64
 	size  int64
+	rFile *os.File
+	wFile *os.File
 	wLock sync.Mutex
 }
 
@@ -34,40 +36,54 @@ func (self *VolumeStorage) init() (err error) {
 		if m, _ := regexp.MatchString("^volume-[0-9]+$", name); m {
 			id, err := strconv.ParseInt(name[7:], 10, 64)
 			if err == nil {
-				v := &VolumeInfo{
-					id:   id,
-					size: file.Size(),
+				v, err := self.mkVolumeInfo(id, file.Size())
+				if err == nil {
+					if v.size < self.limit {
+						self.volumes[v.id] = v
+					}
+					self.volumeMap[v.id] = v
 				}
-				if v.size < self.limit {
-					self.volumes[v.id] = v
-				}
-				self.volumeMap[v.id] = v
 			}
 		}
 	}
 	return nil
 }
 
-func (self *VolumeStorage) getFilePath(id int64) string {
-	return self.root + fmt.Sprintf("/volume-%d", id)
+func (self *VolumeStorage) mkVolumeInfo(id int64, size int64) (*VolumeInfo, error) {
+	filepath := self.root + fmt.Sprintf("/volume-%d", id)
+	w, err := os.OpenFile(filepath, os.O_CREATE|os.O_WRONLY, 0644)
+	if err != nil {
+		return nil, err
+	}
+	r, err := os.OpenFile(filepath, os.O_RDONLY, 0644)
+	if err != nil {
+		w.Close()
+		return nil, err
+	}
+	v := &VolumeInfo{
+		id:    id,
+		size:  size,
+		rFile: r,
+		wFile: w,
+	}
+	return v, nil
 }
 
-func (self *VolumeStorage) getFreeVolume() *VolumeInfo {
+func (self *VolumeStorage) getFreeVolume() (*VolumeInfo, error) {
 	self.volumeLock.Lock()
 	defer self.volumeLock.Unlock()
 
 	for _, v := range self.volumes {
 		if v.size < self.limit {
-			return v
+			return v, nil
 		}
 	}
-	v := &VolumeInfo{
-		id:   time.Now().UnixNano(),
-		size: 0,
+	v, err := self.mkVolumeInfo(time.Now().UnixNano(), 0)
+	if err == nil {
+		self.volumes[v.id] = v
+		self.volumeMap[v.id] = v
 	}
-	self.volumes[v.id] = v
-	self.volumeMap[v.id] = v
-	return v
+	return v, err
 }
 
 func (self *VolumeStorage) ReadFile(id int64, offset int64, size int) (data []byte, err error) {
@@ -78,14 +94,8 @@ func (self *VolumeStorage) ReadFile(id int64, offset int64, size int) (data []by
 		return nil, os.ErrNotExist
 	}
 
-	f, err := os.Open(self.getFilePath(v.id))
-	if err != nil {
-		return nil, err
-	}
-	defer f.Close()
-
 	data = make([]byte, size)
-	_, err = f.ReadAt(data, offset)
+	_, err = v.rFile.ReadAt(data, offset)
 	if err != nil {
 		return nil, err
 	}
@@ -93,21 +103,20 @@ func (self *VolumeStorage) ReadFile(id int64, offset int64, size int) (data []by
 }
 
 func (self *VolumeStorage) WriteFile(data []byte) (id int64, offset int64, err error) {
-	v := self.getFreeVolume()
+	v, err := self.getFreeVolume()
+	if err != nil {
+		return 0, 0, err
+	}
+
 	v.wLock.Lock()
 	defer v.wLock.Unlock()
 
-	f, err := os.OpenFile(self.getFilePath(v.id), os.O_CREATE|os.O_WRONLY, 0644)
-	if err != nil {
-		return 0, 0, err
-	}
-	defer f.Close()
-
 	offset = v.size
-	n, err := f.WriteAt(data, offset)
+	n, err := v.wFile.WriteAt(data, offset)
 	if err != nil {
 		return 0, 0, err
 	}
+	v.wFile.Sync()
 	v.size += int64(n)
 	if v.size >= self.limit {
 		self.volumeLock.Lock()
