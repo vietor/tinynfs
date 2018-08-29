@@ -10,7 +10,7 @@ import (
 	"time"
 )
 
-type VolumeInfo struct {
+type VolumeFile struct {
 	id    int64
 	size  int64
 	rFile *os.File
@@ -21,8 +21,8 @@ type VolumeInfo struct {
 type VolumeStorage struct {
 	root       string
 	limit      int64
-	volumes    map[int64]*VolumeInfo
-	volumeMap  map[int64]*VolumeInfo
+	volumes    map[int64]*VolumeFile
+	volumeMap  map[int64]*VolumeFile
 	volumeLock sync.Mutex
 }
 
@@ -36,7 +36,7 @@ func (self *VolumeStorage) init() (err error) {
 		if m, _ := regexp.MatchString("^volume-[0-9]+$", name); m {
 			id, err := strconv.ParseInt(name[7:], 10, 64)
 			if err == nil {
-				v, err := self.mkVolumeInfo(id, file.Size())
+				v, err := self.mkVolumeFile(id, file.Size())
 				if err == nil {
 					if v.size < self.limit {
 						self.volumes[v.id] = v
@@ -49,7 +49,7 @@ func (self *VolumeStorage) init() (err error) {
 	return nil
 }
 
-func (self *VolumeStorage) mkVolumeInfo(id int64, size int64) (*VolumeInfo, error) {
+func (self *VolumeStorage) mkVolumeFile(id int64, size int64) (*VolumeFile, error) {
 	filepath := self.root + fmt.Sprintf("/volume-%d", id)
 	w, err := os.OpenFile(filepath, os.O_CREATE|os.O_WRONLY, 0644)
 	if err != nil {
@@ -60,7 +60,7 @@ func (self *VolumeStorage) mkVolumeInfo(id int64, size int64) (*VolumeInfo, erro
 		w.Close()
 		return nil, err
 	}
-	v := &VolumeInfo{
+	v := &VolumeFile{
 		id:    id,
 		size:  size,
 		rFile: r,
@@ -69,7 +69,7 @@ func (self *VolumeStorage) mkVolumeInfo(id int64, size int64) (*VolumeInfo, erro
 	return v, nil
 }
 
-func (self *VolumeStorage) getFreeVolume() (*VolumeInfo, error) {
+func (self *VolumeStorage) getFreeVolume() (*VolumeFile, error) {
 	self.volumeLock.Lock()
 	defer self.volumeLock.Unlock()
 
@@ -78,7 +78,7 @@ func (self *VolumeStorage) getFreeVolume() (*VolumeInfo, error) {
 			return v, nil
 		}
 	}
-	v, err := self.mkVolumeInfo(time.Now().UnixNano(), 0)
+	v, err := self.mkVolumeFile(time.Now().UnixNano(), 0)
 	if err == nil {
 		self.volumes[v.id] = v
 		self.volumeMap[v.id] = v
@@ -134,8 +134,8 @@ func NewVolumeStorage(root string, limit int64) (storage *VolumeStorage, err err
 	storage = &VolumeStorage{
 		root:      root,
 		limit:     limit,
-		volumes:   map[int64]*VolumeInfo{},
-		volumeMap: map[int64]*VolumeInfo{},
+		volumes:   map[int64]*VolumeFile{},
+		volumeMap: map[int64]*VolumeFile{},
 	}
 	if err = storage.init(); err != nil {
 		return nil, err
