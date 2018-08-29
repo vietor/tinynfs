@@ -11,5 +11,5 @@ exec:
 	go run src/tinynfsd.go
 
 build:
-	go build -ldflags="-s -w" -o bin/tinynfsd src/tinynfsd.go
+	go build -ldflags="-w" -o bin/tinynfsd src/tinynfsd.go
 
