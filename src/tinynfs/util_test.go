@@ -21,3 +21,14 @@ func TestGetDiskStat(t *testing.T) {
 		t.Logf("GetDiskStat success: %d, %d, %d", info.Size, info.Used, info.Free)
 	}
 }
+
+func TestFileLock(t *testing.T) {
+	lock := NewFileLock("../../test/test.lock")
+	err := lock.Lock()
+	if err != nil {
+		t.Error("File lock error", err)
+	} else {
+		t.Logf("File lock success")
+	}
+	lock.Unlock()
+}
