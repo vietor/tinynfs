@@ -52,14 +52,14 @@ func (self *FileSystem) init() error {
 	self.directStorage = ds
 	self.volumeStroage = vs
 	self.storageDB.Update(func(tx *bolt.Tx) error {
-		_, err := tx.CreateBucket(fileBucket)
+		_, err := tx.CreateBucketIfNotExists(fileBucket)
 		if err != nil {
 			return fmt.Errorf("create bucket: %s", err)
 		}
 		return nil
 	})
 	self.storageDB.Update(func(tx *bolt.Tx) error {
-		_, err := tx.CreateBucket(deleteFileBucket)
+		_, err := tx.CreateBucketIfNotExists(deleteFileBucket)
 		if err != nil {
 			return fmt.Errorf("create bucket: %s", err)
 		}
