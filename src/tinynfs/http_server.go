@@ -61,7 +61,7 @@ func (self *HttpServer) httpSendJsonData(res http.ResponseWriter, req *http.Requ
 }
 
 func NewHttpServer(storage *FileSystem, config *Network) (*HttpServer, error) {
-	listener, err := net.Listen(config.Tcp, config.Bind)
+	fileListener, err := net.Listen(config.Tcp, config.FileBind)
 	if err != nil {
 		return nil, err
 	}
@@ -69,7 +69,7 @@ func NewHttpServer(storage *FileSystem, config *Network) (*HttpServer, error) {
 	srv := &HttpServer{
 		config:       config,
 		storage:      storage,
-		fileListener: listener,
+		fileListener: fileListener,
 	}
 
 	go srv.startFile()
