@@ -2,39 +2,20 @@ package tinynfs
 
 import (
 	"encoding/json"
-	"fmt"
-	"io/ioutil"
 	"net"
 	"net/http"
 	"os"
-	"strings"
 )
 
 type HttpServer struct {
-	config   *Network
-	storage  *FileSystem
-	listener net.Listener
-}
-
-func (self *HttpServer) startApi() {
-	var (
-		serveMux = http.NewServeMux()
-		server   = &http.Server{
-			Handler: serveMux,
-		}
-	)
-	serveMux.HandleFunc("/get", self.handleApiGet)
-	serveMux.HandleFunc("/upload", self.handleApiUpload)
-	serveMux.HandleFunc("/delete", self.handleApiDelete)
-	err := server.Serve(self.listener)
-	if err != nil {
-		fmt.Println(err)
-	}
+	config       *Network
+	storage      *FileSystem
+	fileListener net.Listener
 }
 
 func (self *HttpServer) Close() {
-	if self.listener != nil {
-		self.listener.Close()
+	if self.fileListener != nil {
+		self.fileListener.Close()
 	}
 }
 
@@ -79,99 +60,6 @@ func (self *HttpServer) httpSendJsonData(res http.ResponseWriter, req *http.Requ
 	json.NewEncoder(res).Encode(result)
 }
 
-func (self *HttpServer) handleApiGet(res http.ResponseWriter, req *http.Request) {
-	if req.Method != "GET" {
-		http.Error(res, http.StatusText(http.StatusMethodNotAllowed), http.StatusMethodNotAllowed)
-		return
-	}
-
-	var (
-		xerr  error
-		xmime string
-		xdata []byte
-	)
-	defer self.httpSendByteData(res, req, &xerr, &xmime, &xdata)
-
-	filepath := req.FormValue("filepath")
-	if !strings.HasPrefix(filepath, "/") || strings.HasSuffix(filepath, "/") {
-		xerr = ErrParam
-		return
-	}
-
-	filemime, _, filedata, err := self.storage.ReadFile(filepath)
-	if err != nil {
-		xerr = err
-		return
-	}
-	xmime = filemime
-	xdata = filedata
-}
-
-func (self *HttpServer) handleApiUpload(res http.ResponseWriter, req *http.Request) {
-	if req.Method != "POST" {
-		http.Error(res, http.StatusText(http.StatusMethodNotAllowed), http.StatusMethodNotAllowed)
-		return
-	}
-
-	var (
-		xerr  error
-		xdata = map[string]interface{}{}
-	)
-	defer self.httpSendJsonData(res, req, &xerr, xdata)
-
-	filepath := req.FormValue("filepath")
-	if !strings.HasPrefix(filepath, "/") || strings.HasSuffix(filepath, "/") {
-		xerr = ErrParam
-		return
-	}
-
-	datafile, dataheader, err := req.FormFile("filedata")
-	if err != nil {
-		xerr = ErrParam
-		return
-	}
-	filedata, err := ioutil.ReadAll(datafile)
-	if err != nil {
-		xerr = err
-		return
-	}
-	filemime := dataheader.Header.Get("Content-Type")
-	err = self.storage.WriteFile(filepath, filemime, "", filedata)
-	if err != nil {
-		xerr = err
-		return
-	}
-	xdata["size"] = len(filedata)
-	xdata["mime"] = filemime
-	xdata["path"] = filepath
-}
-
-func (self *HttpServer) handleApiDelete(res http.ResponseWriter, req *http.Request) {
-	if req.Method != "POST" {
-		http.Error(res, http.StatusText(http.StatusMethodNotAllowed), http.StatusMethodNotAllowed)
-		return
-	}
-
-	var (
-		xerr  error
-		xdata = map[string]interface{}{}
-	)
-	defer self.httpSendJsonData(res, req, &xerr, xdata)
-
-	filepath := req.FormValue("filepath")
-	if !strings.HasPrefix(filepath, "/") || strings.HasSuffix(filepath, "/") {
-		xerr = ErrParam
-		return
-	}
-
-	err := self.storage.DeleteFile(filepath)
-	if err != nil {
-		xerr = err
-		return
-	}
-	xdata["path"] = filepath
-}
-
 func NewHttpServer(storage *FileSystem, config *Network) (*HttpServer, error) {
 	listener, err := net.Listen(config.Tcp, config.Bind)
 	if err != nil {
@@ -179,11 +67,11 @@ func NewHttpServer(storage *FileSystem, config *Network) (*HttpServer, error) {
 	}
 
 	srv := &HttpServer{
-		config:   config,
-		storage:  storage,
-		listener: listener,
+		config:       config,
+		storage:      storage,
+		fileListener: listener,
 	}
 
-	go srv.startApi()
+	go srv.startFile()
 	return srv, nil
 }

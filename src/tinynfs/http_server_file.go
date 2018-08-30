@@ -1,0 +1,117 @@
+package tinynfs
+
+import (
+	"fmt"
+	"io/ioutil"
+	"net/http"
+	"strings"
+)
+
+func (self *HttpServer) startFile() {
+	var (
+		serveMux = http.NewServeMux()
+		server   = &http.Server{
+			Handler: serveMux,
+		}
+	)
+	serveMux.HandleFunc("/get", self.handleFileGet)
+	serveMux.HandleFunc("/upload", self.handleFileUpload)
+	serveMux.HandleFunc("/delete", self.handleFileDelete)
+	err := server.Serve(self.fileListener)
+	if err != nil {
+		fmt.Println(err)
+	}
+}
+
+func (self *HttpServer) handleFileGet(res http.ResponseWriter, req *http.Request) {
+	if req.Method != "GET" {
+		http.Error(res, http.StatusText(http.StatusMethodNotAllowed), http.StatusMethodNotAllowed)
+		return
+	}
+
+	var (
+		xerr  error
+		xmime string
+		xdata []byte
+	)
+	defer self.httpSendByteData(res, req, &xerr, &xmime, &xdata)
+
+	filepath := req.FormValue("filepath")
+	if !strings.HasPrefix(filepath, "/") || strings.HasSuffix(filepath, "/") {
+		xerr = ErrParam
+		return
+	}
+
+	filemime, _, filedata, err := self.storage.ReadFile(filepath)
+	if err != nil {
+		xerr = err
+		return
+	}
+	xmime = filemime
+	xdata = filedata
+}
+
+func (self *HttpServer) handleFileUpload(res http.ResponseWriter, req *http.Request) {
+	if req.Method != "POST" {
+		http.Error(res, http.StatusText(http.StatusMethodNotAllowed), http.StatusMethodNotAllowed)
+		return
+	}
+
+	var (
+		xerr  error
+		xdata = map[string]interface{}{}
+	)
+	defer self.httpSendJsonData(res, req, &xerr, xdata)
+
+	filepath := req.FormValue("filepath")
+	if !strings.HasPrefix(filepath, "/") || strings.HasSuffix(filepath, "/") {
+		xerr = ErrParam
+		return
+	}
+
+	datafile, dataheader, err := req.FormFile("filedata")
+	if err != nil {
+		xerr = ErrParam
+		return
+	}
+	filedata, err := ioutil.ReadAll(datafile)
+	if err != nil {
+		xerr = err
+		return
+	}
+	filemime := dataheader.Header.Get("Content-Type")
+	err = self.storage.WriteFile(filepath, filemime, "", filedata)
+	if err != nil {
+		xerr = err
+		return
+	}
+	xdata["size"] = len(filedata)
+	xdata["mime"] = filemime
+	xdata["path"] = filepath
+}
+
+func (self *HttpServer) handleFileDelete(res http.ResponseWriter, req *http.Request) {
+	if req.Method != "POST" {
+		http.Error(res, http.StatusText(http.StatusMethodNotAllowed), http.StatusMethodNotAllowed)
+		return
+	}
+
+	var (
+		xerr  error
+		xdata = map[string]interface{}{}
+	)
+	defer self.httpSendJsonData(res, req, &xerr, xdata)
+
+	filepath := req.FormValue("filepath")
+	if !strings.HasPrefix(filepath, "/") || strings.HasSuffix(filepath, "/") {
+		xerr = ErrParam
+		return
+	}
+
+	err := self.storage.DeleteFile(filepath)
+	if err != nil {
+		xerr = err
+		return
+	}
+	xdata["path"] = filepath
+}
