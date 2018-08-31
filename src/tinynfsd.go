@@ -12,7 +12,7 @@ import (
 )
 
 var (
-	version = "1.0.0"
+	version = "1.0"
 	command = struct {
 		h bool
 		t bool
