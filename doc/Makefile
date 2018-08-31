@@ -4,13 +4,15 @@ export GOPATH = $(PROJECT_PATH)
 
 default: exec
 
+exec:
+	go run src/tinynfsd.go
+
 deps:
 	go get golang.org/x/image/draw
 	go get github.com/etcd-io/bbolt
 
-exec:
-	go run src/tinynfsd.go
-
-build:
+build: deps
 	go build -ldflags="-s -w" -o bin/tinynfsd src/tinynfsd.go
 
+clean:
+	rm -f bin/tinynfsd
