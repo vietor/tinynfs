@@ -23,6 +23,10 @@ func init() {
 	image.RegisterFormat("jpeg", "jpeg", jpeg.Decode, jpeg.DecodeConfig)
 }
 
+var (
+	imageScaler = draw.NearestNeighbor
+)
+
 func (self *HttpServer) startImage() {
 	var (
 		serveMux = http.NewServeMux()
@@ -163,7 +167,7 @@ func (self *HttpServer) handleImageGet(res http.ResponseWriter, req *http.Reques
 	}
 
 	target := image.NewRGBA(image.Rect(0, 0, fixwidth, fixheight))
-	draw.NearestNeighbor.Scale(target, target.Bounds(), origin, origin.Bounds(), draw.Over, nil)
+	imageScaler.Scale(target, target.Bounds(), origin, origin.Bounds(), draw.Over, nil)
 
 	buffer := bytes.NewBuffer(nil)
 	if filemime == "image/jpeg" {
