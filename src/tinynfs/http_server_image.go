@@ -189,9 +189,12 @@ func (self *HttpServer) handleImageGet(res http.ResponseWriter, req *http.Reques
 		filemime = "image/png"
 	}
 
+	options := &WriteOptions{
+		Overwrite: false,
+	}
 	imagedata := buffer.Bytes()
-	err = self.storage.WriteFile(fmt.Sprintf("%s_%dx%d", originpath, askwidth, askheight), filemime, fmt.Sprintf("%dx%d", fixwidth, fixheight), imagedata)
-	if err != nil {
+	err = self.storage.WriteFileEx(fmt.Sprintf("%s_%dx%d", originpath, askwidth, askheight), filemime, fmt.Sprintf("%dx%d", fixwidth, fixheight), imagedata, options)
+	if err != nil && err != os.ErrExist {
 		xerr = err
 		return
 	}
@@ -231,7 +234,6 @@ func (self *HttpServer) handleImageUpload(res http.ResponseWriter, req *http.Req
 
 	randtext := RandHex(10)
 	filepath := self.config.ImageFilePath + strings.ToUpper(randtext[0:2]+"/"+randtext[2:4]) + "/" + randtext[5:] + TimeHex(1)
-
 	err = self.storage.WriteFile(filepath, strings.ToLower("image/"+format), fmt.Sprintf("%dx%d", config.Width, config.Height), imagedata)
 	if err != nil {
 		xerr = err

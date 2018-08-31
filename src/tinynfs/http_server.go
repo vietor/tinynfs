@@ -26,16 +26,14 @@ func (self *HttpServer) Close() {
 }
 
 func (self *HttpServer) getHttpStatusCode(err error) int {
-	if err == ErrParam {
+	if err == ErrParam || err == ErrThumbnailSize {
 		return http.StatusBadRequest
-	} else if err == os.ErrPermission {
+	} else if err == os.ErrPermission || err == os.ErrExist {
 		return http.StatusForbidden
 	} else if err == os.ErrNotExist {
 		return http.StatusNotFound
 	} else if err == ErrMediaType {
 		return http.StatusUnsupportedMediaType
-	} else if err == ErrThumbnailSize {
-		return http.StatusBadRequest
 	}
 	return http.StatusInternalServerError
 }

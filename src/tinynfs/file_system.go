@@ -9,11 +9,6 @@ import (
 	"time"
 )
 
-var (
-	fileBucket       = []byte("files")
-	deleteFileBucket = []byte("deletefiles")
-)
-
 type FileNode struct {
 	Size         int    `json:"size"`
 	Mime         string `json:"mime"`
@@ -31,6 +26,18 @@ type FileSystem struct {
 	directStorage *DirectStorage
 	volumeStroage *VolumeStorage
 }
+
+type WriteOptions struct {
+	Overwrite bool
+}
+
+var (
+	fileBucket          = []byte("files")
+	deleteFileBucket    = []byte("deletefiles")
+	defaultWriteOptions = &WriteOptions{
+		Overwrite: true,
+	}
+)
 
 func (self *FileSystem) init() error {
 	db, err := bolt.Open(filepath.Join(self.root, "storage.db"), 0644, &bolt.Options{Timeout: 1 * time.Second})
@@ -125,6 +132,14 @@ func (self *FileSystem) ReadFile(filepath string) (string, string, []byte, error
 }
 
 func (self *FileSystem) WriteFile(filepath string, filemime string, metadata string, data []byte) error {
+	return self.WriteFileEx(filepath, filemime, metadata, data, nil)
+}
+
+func (self *FileSystem) WriteFileEx(filepath string, filemime string, metadata string, data []byte, options *WriteOptions) error {
+	if options == nil {
+		options = defaultWriteOptions
+	}
+
 	dstat, err := GetDiskStat(self.root)
 	if err != nil {
 		return err
@@ -133,6 +148,10 @@ func (self *FileSystem) WriteFile(filepath string, filemime string, metadata str
 	}
 
 	oldnode, _ := self.getFileNode(fileBucket, []byte(filepath))
+	if oldnode != nil && !options.Overwrite {
+		return os.ErrExist
+	}
+
 	var (
 		node *FileNode
 		size = len(data)
