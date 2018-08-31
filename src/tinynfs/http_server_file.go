@@ -18,7 +18,7 @@ func (self *HttpServer) startFile() {
 	serveMux.HandleFunc("/upload", self.handleFileUpload)
 	serveMux.HandleFunc("/delete", self.handleFileDelete)
 	err := server.Serve(self.fileListener)
-	if err != nil {
+	if err != nil && !self.closed {
 		fmt.Println(err)
 	}
 }

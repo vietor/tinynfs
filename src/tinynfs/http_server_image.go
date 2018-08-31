@@ -38,7 +38,7 @@ func (self *HttpServer) startImage() {
 	serveMux.HandleFunc("/upload", self.handleImageUpload)
 	serveMux.HandleFunc("/upload/file", self.handleImageUploadFile)
 	err := server.Serve(self.imageListener)
-	if err != nil {
+	if err != nil && !self.closed {
 		fmt.Println(err)
 	}
 }

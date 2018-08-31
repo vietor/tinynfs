@@ -8,6 +8,7 @@ import (
 )
 
 type HttpServer struct {
+	closed        bool
 	config        *Network
 	storage       *FileSystem
 	fileListener  net.Listener
@@ -15,6 +16,7 @@ type HttpServer struct {
 }
 
 func (self *HttpServer) Close() {
+	self.closed = true
 	if self.fileListener != nil {
 		self.fileListener.Close()
 	}

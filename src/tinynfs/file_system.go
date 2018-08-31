@@ -129,7 +129,7 @@ func (self *FileSystem) WriteFile(filepath string, filemime string, metadata str
 	if err != nil {
 		return err
 	} else if dstat.Free < uint64(self.config.DiskRemain) {
-		return ErrDiskFull
+		return ErrDiskFully
 	}
 
 	oldnode, _ := self.getFileNode(fileBucket, []byte(filepath))
