@@ -11,11 +11,11 @@ import (
 )
 
 type Network struct {
-	Tcp                string
-	FileBind           string
-	ImageBind          string
-	ImageFilePath      string
-	ImageThumbnailSize map[string]bool
+	Tcp                 string
+	FileBind            string
+	ImageBind           string
+	ImageFilePath       string
+	ImageThumbnailSizes map[string]bool
 }
 
 type Storage struct {
@@ -27,6 +27,25 @@ type Storage struct {
 type Config struct {
 	Network *Network
 	Storage *Storage
+}
+
+func (self *Config) Dump() string {
+	lines := []string{
+		"# configuration",
+	}
+	lines = append(lines, "network.tcp="+self.Network.Tcp)
+	lines = append(lines, "network.file.bind="+self.Network.FileBind)
+	lines = append(lines, "network.image.bind="+self.Network.ImageBind)
+	lines = append(lines, "network.image.path="+self.Network.ImageFilePath)
+	sizes := make([]string, 0, len(self.Network.ImageThumbnailSizes))
+	for k := range self.Network.ImageThumbnailSizes {
+		sizes = append(sizes, k)
+	}
+	lines = append(lines, "network.image.thumbnail.sizes="+strings.Join(sizes, ","))
+	lines = append(lines, fmt.Sprintf("storage.disk.remain=%d #Bytes", self.Storage.DiskRemain))
+	lines = append(lines, fmt.Sprintf("storage.direct.minsize=%d #Bytes", self.Storage.DirectMinSize))
+	lines = append(lines, fmt.Sprintf("storage.volume.maxsize=%d #Bytes", self.Storage.VolumeMaxSize))
+	return strings.Join(lines, "\n")
 }
 
 func parseBytes(s string) (uint64, error) {
@@ -72,7 +91,7 @@ func NewConfig(filepath string) (*Config, error) {
 			FileBind:      ":7119",
 			ImageBind:     ":7120",
 			ImageFilePath: "/group1/M00/",
-			ImageThumbnailSize: map[string]bool{
+			ImageThumbnailSizes: map[string]bool{
 				"192x192": true,
 				"240x240": true,
 			},
@@ -137,10 +156,10 @@ func NewConfig(filepath string) (*Config, error) {
 			if m, _ := regexp.MatchString("^[0-9x,]+$", value); !m {
 				return nil, fmt.Errorf("line %d: %s", no, err)
 			} else {
-				config.Network.ImageThumbnailSize = map[string]bool{}
+				config.Network.ImageThumbnailSizes = map[string]bool{}
 				for _, v := range strings.Split(value, ",") {
 					if len(v) > 0 {
-						config.Network.ImageThumbnailSize[v] = true
+						config.Network.ImageThumbnailSizes[v] = true
 					}
 				}
 			}

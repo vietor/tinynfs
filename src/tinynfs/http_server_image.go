@@ -57,7 +57,7 @@ func (self *HttpServer) parseThumbnailSize(size string) (int, int) {
 func (self *HttpServer) parseThumbnailPath(filepath string) (string, int, int, error) {
 	n := strings.LastIndex(filepath, "_")
 	size := filepath[n+1:]
-	if _, ok := self.config.ImageThumbnailSize[size]; !ok {
+	if _, ok := self.config.ImageThumbnailSizes[size]; !ok {
 		return "", 0, 0, ErrThumbnailSize
 	}
 	width, height := self.parseThumbnailSize(size)

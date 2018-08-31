@@ -16,6 +16,7 @@ var (
 	command = struct {
 		h bool
 		t bool
+		T bool
 		c string
 		d string
 	}{}
@@ -23,9 +24,10 @@ var (
 
 func init() {
 	flag.BoolVar(&command.h, "h", false, "this help")
+	flag.BoolVar(&command.T, "T", false, "dump configuration")
 	flag.BoolVar(&command.t, "t", false, "test configuration and exit")
 	flag.StringVar(&command.c, "c", "etc/tinynfsd.conf", "set configuration `file`")
-	flag.StringVar(&command.d, "d", "data/", "set data storage path")
+	flag.StringVar(&command.d, "d", "data/", "set data storage `path`")
 	flag.Usage = func() {
 		fmt.Fprintf(os.Stderr, "tinynfsd version: %s\n\nOptions:\n", version)
 		flag.PrintDefaults()
@@ -34,6 +36,11 @@ func init() {
 
 func main() {
 	flag.Parse()
+
+	if command.h {
+		flag.Usage()
+		return
+	}
 
 	cfile, err := filepath.Abs(command.c)
 	if err != nil {
@@ -45,12 +52,15 @@ func main() {
 	}
 
 	if command.t {
-		_, err := tinynfs.NewConfig(cfile)
+		config, err := tinynfs.NewConfig(cfile)
 		if err != nil {
 			fmt.Println(err)
 			fmt.Printf("configuration file %s test failed\n", cfile)
 		} else {
 			fmt.Printf("configuration file %s is successful\n", cfile)
+			if command.T {
+				fmt.Println(config.Dump())
+			}
 		}
 		return
 	}
@@ -58,6 +68,8 @@ func main() {
 	config, err := tinynfs.NewConfig(cfile)
 	if err != nil {
 		log.Fatalln(err)
+	} else if command.T {
+		fmt.Println(config.Dump())
 	}
 
 	plocker := tinynfs.NewProcessLock(filepath.Join(dpath, "tinynfsd.lock"))
