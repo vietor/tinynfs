@@ -11,8 +11,11 @@ import (
 )
 
 type Network struct {
-	Tcp      string
-	FileBind string
+	Tcp                string
+	FileBind           string
+	ImageBind          string
+	ImageFilePath      string
+	ImageThumbnailSize map[string]bool
 }
 
 type Storage struct {
@@ -65,8 +68,14 @@ func parseBytes(s string) (uint64, error) {
 func NewConfig(filepath string) *Config {
 	config := &Config{
 		Network: &Network{
-			Tcp:      "tcp4",
-			FileBind: ":7119",
+			Tcp:           "tcp4",
+			FileBind:      ":7119",
+			ImageBind:     ":7120",
+			ImageFilePath: "/group1/M00/",
+			ImageThumbnailSize: map[string]bool{
+				"192x192": true,
+				"240x240": true,
+			},
 		},
 		Storage: &Storage{
 			DiskRemain:    50 * 1024 * 1024,
@@ -112,6 +121,29 @@ func NewConfig(filepath string) *Config {
 				log.Println("Ignore config line:" + line)
 			} else {
 				config.Network.FileBind = value
+			}
+		case "network.image.bind":
+			if m, _ := regexp.MatchString("^[:0-9a-zA-Z]*:[0-9]+$", value); !m {
+				log.Println("Ignore config line:" + line)
+			} else {
+				config.Network.ImageBind = value
+			}
+		case "network.image.path":
+			if m, _ := regexp.MatchString("^\\/[^\\ ]+\\/*$", value); !m {
+				log.Println("Ignore config line:" + line)
+			} else {
+				config.Network.ImageFilePath = value
+			}
+		case "network.image.thumbnail.sizes":
+			if m, _ := regexp.MatchString("^[0-9x,]+$", value); !m {
+				log.Println("Ignore config line:" + line)
+			} else {
+				config.Network.ImageThumbnailSize = map[string]bool{}
+				for _, v := range strings.Split(value, ",") {
+					if len(v) > 0 {
+						config.Network.ImageThumbnailSize[v] = true
+					}
+				}
 			}
 		case "storage.disk.remain":
 			size, err := parseBytes(value)

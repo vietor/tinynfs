@@ -3,7 +3,9 @@
 /pkg
 /data
 /test
+/src/test*
 /src/github.com
+/src/golang.org
 
 GPATH
 GRTAGS

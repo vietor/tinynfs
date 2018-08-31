@@ -8,14 +8,18 @@ import (
 )
 
 type HttpServer struct {
-	config       *Network
-	storage      *FileSystem
-	fileListener net.Listener
+	config        *Network
+	storage       *FileSystem
+	fileListener  net.Listener
+	imageListener net.Listener
 }
 
 func (self *HttpServer) Close() {
 	if self.fileListener != nil {
 		self.fileListener.Close()
+	}
+	if self.imageListener != nil {
+		self.imageListener.Close()
 	}
 }
 
@@ -28,6 +32,8 @@ func (self *HttpServer) getHttpStatusCode(err error) int {
 		return http.StatusForbidden
 	} else if err == os.ErrNotExist {
 		return http.StatusNotFound
+	} else if err == ErrMediaType {
+		return http.StatusUnsupportedMediaType
 	}
 	return http.StatusInternalServerError
 }
@@ -65,13 +71,20 @@ func NewHttpServer(storage *FileSystem, config *Network) (*HttpServer, error) {
 	if err != nil {
 		return nil, err
 	}
+	imageListener, err := net.Listen(config.Tcp, config.ImageBind)
+	if err != nil {
+		fileListener.Close()
+		return nil, err
+	}
 
 	srv := &HttpServer{
-		config:       config,
-		storage:      storage,
-		fileListener: fileListener,
+		config:        config,
+		storage:       storage,
+		fileListener:  fileListener,
+		imageListener: imageListener,
 	}
 
 	go srv.startFile()
+	go srv.startImage()
 	return srv, nil
 }

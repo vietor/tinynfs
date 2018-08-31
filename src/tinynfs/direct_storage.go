@@ -1,10 +1,8 @@
 package tinynfs
 
 import (
-	"fmt"
 	"io/ioutil"
 	"os"
-	"time"
 )
 
 type DirectStorage struct {
@@ -19,17 +17,18 @@ func (self *DirectStorage) ReadFile(filepath string) ([]byte, error) {
 }
 
 func (self *DirectStorage) WriteFile(extname string, data []byte) (string, error) {
-	randText := RandHex(5)
-	pathText := randText[0:2] + "/" + randText[2:4]
-	nameText := randText[5:] + fmt.Sprintf("%x", time.Now().UnixNano())
+	randtext := RandHex(5)
+	subpath := randtext[0:2] + "/" + randtext[2:4]
+	filename := randtext[5:] + TimeHex(1)
+	if len(extname) > 0 {
+		filename = filename + "." + extname
+	}
 
-	if err := os.MkdirAll((self.root + "/" + pathText), 0777); err != nil {
+	if err := os.MkdirAll((self.root + "/" + subpath), 0777); err != nil {
 		return "", err
 	}
-	filepath := pathText + "/" + nameText
-	if len(extname) > 0 {
-		filepath = filepath + "." + extname
-	}
+
+	filepath := subpath + "/" + filename
 	if err := ioutil.WriteFile((self.root + "/" + filepath), data, 0644); err != nil {
 		return "", err
 	}

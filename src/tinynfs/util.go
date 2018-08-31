@@ -24,6 +24,16 @@ var myRand = struct {
 	rand: mrand.New(mrand.NewSource(time.Now().UnixNano())),
 }
 
+func TimeHex(style int) string {
+	var ts int64
+	if style == 0 {
+		ts = time.Now().Unix()
+	} else {
+		ts = time.Now().UnixNano()
+	}
+	return fmt.Sprintf("%x", ts)
+}
+
 func RandHex(bytes int) string {
 	randBytes := make([]byte, bytes)
 	if _, err := io.ReadFull(crand.Reader, randBytes); err != nil {

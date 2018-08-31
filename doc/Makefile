@@ -5,6 +5,7 @@ export GOPATH = $(PROJECT_PATH)
 default: exec
 
 deps:
+	go get golang.org/x/image/draw
 	go get github.com/etcd-io/bbolt
 
 exec:

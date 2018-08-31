@@ -4,6 +4,13 @@ import (
 	"testing"
 )
 
+func TestTimeHex(t *testing.T) {
+	hex := TimeHex(0)
+	t.Log("Timehex success, " + hex)
+	hex = TimeHex(1)
+	t.Log("Timehex success, " + hex)
+}
+
 func TestRandHex(t *testing.T) {
 	hex := RandHex(5)
 	if len(hex) != 10 {
