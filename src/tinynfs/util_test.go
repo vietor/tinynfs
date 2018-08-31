@@ -29,13 +29,13 @@ func TestGetDiskStat(t *testing.T) {
 	}
 }
 
-func TestFileLock(t *testing.T) {
-	lock := NewFileLock("../../test/test.lock")
-	err := lock.Lock()
+func TestProcessLock(t *testing.T) {
+	plock := NewProcessLock("../../test/test.lock")
+	err := plock.Lock()
 	if err != nil {
-		t.Error("File lock error", err)
+		t.Error("ProcessLock error", err)
 	} else {
-		t.Logf("File lock success")
+		t.Logf("ProcessLock success")
 	}
-	lock.Unlock()
+	plock.Unlock()
 }

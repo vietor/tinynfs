@@ -2,7 +2,7 @@ package tinynfs
 
 import (
 	"bufio"
-	"log"
+	"fmt"
 	"os"
 	"regexp"
 	"strconv"
@@ -65,7 +65,7 @@ func parseBytes(s string) (uint64, error) {
 	return bytes, nil
 }
 
-func NewConfig(filepath string) *Config {
+func NewConfig(filepath string) (*Config, error) {
 	config := &Config{
 		Network: &Network{
 			Tcp:           "tcp4",
@@ -86,13 +86,14 @@ func NewConfig(filepath string) *Config {
 
 	file, err := os.Open(filepath)
 	if err != nil {
-		log.Println(err)
-		return config
+		return nil, err
 	}
 	defer file.Close()
 
+	no := 0
 	scanner := bufio.NewScanner(file)
 	for scanner.Scan() {
+		no = no + 1
 		line := strings.TrimSpace(scanner.Text())
 		if len(line) < 1 || strings.HasPrefix(line, "#") {
 			continue
@@ -100,43 +101,41 @@ func NewConfig(filepath string) *Config {
 		line = strings.TrimSpace(strings.Split(line, "#")[0])
 		fields := strings.Split(line, "=")
 		if len(fields) != 2 {
-			log.Println("Bad config line: " + line)
-			continue
+			return nil, fmt.Errorf("line %d: muiltiple `=`", no)
 		}
 		key := strings.TrimSpace(fields[0])
 		value := strings.TrimSpace(fields[1])
 		if len(key) < 1 || len(value) < 1 {
-			log.Println("Bad config line: " + line)
-			continue
+			return nil, fmt.Errorf("line %d: empty key or value", no)
 		}
 		switch key {
 		case "network.tcp":
 			if m, _ := regexp.MatchString("^(tcp|tcp4|tcp6)$", value); !m {
-				log.Println("Ignore config line:" + line)
+				return nil, fmt.Errorf("line %d: %s", no, err)
 			} else {
 				config.Network.Tcp = value
 			}
 		case "network.file.bind":
 			if m, _ := regexp.MatchString("^[:0-9a-zA-Z]*:[0-9]+$", value); !m {
-				log.Println("Ignore config line:" + line)
+				return nil, fmt.Errorf("line %d: %s", no, err)
 			} else {
 				config.Network.FileBind = value
 			}
 		case "network.image.bind":
 			if m, _ := regexp.MatchString("^[:0-9a-zA-Z]*:[0-9]+$", value); !m {
-				log.Println("Ignore config line:" + line)
+				return nil, fmt.Errorf("line %d: %s", no, err)
 			} else {
 				config.Network.ImageBind = value
 			}
 		case "network.image.path":
 			if m, _ := regexp.MatchString("^\\/[^\\ ]+\\/*$", value); !m {
-				log.Println("Ignore config line:" + line)
+				return nil, fmt.Errorf("line %d: %s", no, err)
 			} else {
 				config.Network.ImageFilePath = value
 			}
 		case "network.image.thumbnail.sizes":
 			if m, _ := regexp.MatchString("^[0-9x,]+$", value); !m {
-				log.Println("Ignore config line:" + line)
+				return nil, fmt.Errorf("line %d: %s", no, err)
 			} else {
 				config.Network.ImageThumbnailSize = map[string]bool{}
 				for _, v := range strings.Split(value, ",") {
@@ -148,31 +147,31 @@ func NewConfig(filepath string) *Config {
 		case "storage.disk.remain":
 			size, err := parseBytes(value)
 			if err != nil {
-				log.Println("Ignore config line:" + line)
+				return nil, fmt.Errorf("line %d: %s", no, err)
 			} else {
 				config.Storage.DiskRemain = int64(size)
 			}
 		case "storage.direct.minsize":
 			size, err := parseBytes(value)
 			if err != nil {
-				log.Println("Ignore config line:" + line)
+				return nil, fmt.Errorf("line %d: %s", no, err)
 			} else {
 				config.Storage.DirectMinSize = int64(size)
 			}
 		case "storage.volume.maxsize":
 			size, err := parseBytes(value)
 			if err != nil {
-				log.Println("Ignore config line:" + line)
+				return nil, fmt.Errorf("line %d: %s", no, err)
 			} else {
 				config.Storage.VolumeMaxSize = int64(size)
 			}
 		default:
-			log.Println("Ignore config line:" + line)
+			fmt.Printf("ignore line: %d: %s\n", no, line)
 		}
 	}
 	if err := scanner.Err(); err != nil {
-		log.Println(err)
+		fmt.Println("ignore error:", err)
 	}
 
-	return config
+	return config, nil
 }

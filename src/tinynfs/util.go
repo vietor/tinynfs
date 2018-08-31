@@ -44,12 +44,12 @@ func RandHex(bytes int) string {
 	return fmt.Sprintf("%x", randBytes)
 }
 
-type FileLock struct {
+type ProcessLock struct {
 	file     *os.File
 	lockfile string
 }
 
-func (self *FileLock) Lock() error {
+func (self *ProcessLock) Lock() error {
 	if err := os.MkdirAll(filepath.Dir(self.lockfile), 0777); err != nil {
 		return err
 	}
@@ -67,7 +67,7 @@ func (self *FileLock) Lock() error {
 	return nil
 }
 
-func (self *FileLock) Unlock() {
+func (self *ProcessLock) Unlock() {
 	if self.file != nil {
 		SysUnflock(int(self.file.Fd()))
 		self.file.Close()
@@ -75,8 +75,8 @@ func (self *FileLock) Unlock() {
 	}
 }
 
-func NewFileLock(filepath string) *FileLock {
-	return &FileLock{
+func NewProcessLock(filepath string) *ProcessLock {
+	return &ProcessLock{
 		lockfile: filepath,
 	}
 }

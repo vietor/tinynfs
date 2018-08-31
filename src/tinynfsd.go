@@ -1,23 +1,81 @@
 package main
 
 import (
+	"flag"
 	"fmt"
+	"log"
 	"os"
-	"os/exec"
 	"os/signal"
 	"path/filepath"
 	"syscall"
 	"tinynfs"
 )
 
-func GetCWD() string {
-	cwd := os.Getenv("GOPATH")
-	if cwd == "" {
-		efile, _ := exec.LookPath(os.Args[0])
-		epath := filepath.Dir(filepath.Dir(efile))
-		cwd, _ = filepath.Abs(epath)
+var (
+	version = "1.0.0"
+	command = struct {
+		h bool
+		t bool
+		c string
+		d string
+	}{}
+)
+
+func init() {
+	flag.BoolVar(&command.h, "h", false, "this help")
+	flag.BoolVar(&command.t, "t", false, "test configuration and exit")
+	flag.StringVar(&command.c, "c", "etc/tinynfsd.conf", "set configuration `file`")
+	flag.StringVar(&command.d, "d", "data/", "set data storage path")
+	flag.Usage = func() {
+		fmt.Fprintf(os.Stderr, "tinynfsd version: %s\n\nOptions:\n", version)
+		flag.PrintDefaults()
 	}
-	return cwd
+}
+
+func main() {
+	flag.Parse()
+
+	cfile, err := filepath.Abs(command.c)
+	if err != nil {
+		log.Fatalln(err)
+	}
+	dpath, err := filepath.Abs(command.d)
+	if err != nil {
+		log.Fatalln(err)
+	}
+
+	if command.t {
+		_, err := tinynfs.NewConfig(cfile)
+		if err != nil {
+			fmt.Println(err)
+			fmt.Printf("configuration file %s test failed\n", cfile)
+		} else {
+			fmt.Printf("configuration file %s is successful\n", cfile)
+		}
+		return
+	}
+
+	config, err := tinynfs.NewConfig(cfile)
+	if err != nil {
+		log.Fatalln(err)
+	}
+
+	plocker := tinynfs.NewProcessLock(filepath.Join(dpath, "tinynfsd.lock"))
+	if err := plocker.Lock(); err != nil {
+		log.Fatalln(err)
+	}
+	defer plocker.Unlock()
+
+	storage, err := tinynfs.NewFileSystem(dpath, config.Storage)
+	if err != nil {
+		log.Fatalln(err)
+	}
+	server, err := tinynfs.NewHttpServer(storage, config.Network)
+	if err != nil {
+		storage.Close()
+		log.Fatalln(err)
+	}
+	StartSignal(server, storage)
 }
 
 func StartSignal(server *tinynfs.HttpServer, storage *tinynfs.FileSystem) {
@@ -38,27 +96,4 @@ func StartSignal(server *tinynfs.HttpServer, storage *tinynfs.FileSystem) {
 			return
 		}
 	}
-}
-
-func main() {
-	cwd := GetCWD()
-	config := tinynfs.NewConfig(filepath.Join(cwd, "etc", "tinynfsd.conf"))
-	locker := tinynfs.NewFileLock(filepath.Join(cwd, "data", "tinynfsd.lock"))
-	if err := locker.Lock(); err != nil {
-		fmt.Println(err)
-		return
-	}
-	defer locker.Unlock()
-	storage, err := tinynfs.NewFileSystem(filepath.Join(cwd, "data"), config.Storage)
-	if err != nil {
-		fmt.Println(err)
-		return
-	}
-	server, err := tinynfs.NewHttpServer(storage, config.Network)
-	if err != nil {
-		fmt.Println(err)
-		storage.Close()
-		return
-	}
-	StartSignal(server, storage)
 }
