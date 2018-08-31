@@ -36,6 +36,7 @@ func (self *HttpServer) startImage() {
 	)
 	serveMux.HandleFunc("/", self.handleImageGet)
 	serveMux.HandleFunc("/upload", self.handleImageUpload)
+	serveMux.HandleFunc("/upload/file", self.handleImageUploadFile)
 	err := server.Serve(self.imageListener)
 	if err != nil {
 		fmt.Println(err)
@@ -230,6 +231,53 @@ func (self *HttpServer) handleImageUpload(res http.ResponseWriter, req *http.Req
 
 	randtext := RandHex(10)
 	filepath := self.config.ImageFilePath + strings.ToUpper(randtext[0:2]+"/"+randtext[2:4]) + "/" + randtext[5:] + TimeHex(1)
+
+	err = self.storage.WriteFile(filepath, strings.ToLower("image/"+format), fmt.Sprintf("%dx%d", config.Width, config.Height), imagedata)
+	if err != nil {
+		xerr = err
+		return
+	}
+	xdata["size"] = len(imagedata)
+	xdata["width"] = config.Width
+	xdata["height"] = config.Height
+	xdata["image_url"] = filepath
+}
+
+func (self *HttpServer) handleImageUploadFile(res http.ResponseWriter, req *http.Request) {
+	if req.Method != "POST" {
+		http.Error(res, http.StatusText(http.StatusMethodNotAllowed), http.StatusMethodNotAllowed)
+		return
+	}
+
+	var (
+		xerr  error
+		xdata = map[string]interface{}{}
+	)
+	defer self.httpSendJsonData(res, req, &xerr, xdata)
+
+	filepath := req.FormValue("filepath")
+	if !strings.HasPrefix(filepath, "/") || strings.HasSuffix(filepath, "/") {
+		xerr = ErrParam
+		return
+	}
+
+	dataimage, _, err := req.FormFile("imagedata")
+	if err != nil {
+		xerr = ErrParam
+		return
+	}
+	imagedata, err := ioutil.ReadAll(dataimage)
+	if err != nil {
+		xerr = err
+		return
+	}
+
+	reader := bytes.NewReader(imagedata)
+	config, format, err := image.DecodeConfig(reader)
+	if err != nil {
+		xerr = ErrMediaType
+		return
+	}
 
 	err = self.storage.WriteFile(filepath, strings.ToLower("image/"+format), fmt.Sprintf("%dx%d", config.Width, config.Height), imagedata)
 	if err != nil {
