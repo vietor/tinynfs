@@ -212,7 +212,7 @@ func (self *HttpServer) storeImageToFile(filepath string, dataimage io.Reader, o
 	}
 	if len(filepath) < 1 {
 		randtext := RandHex(10)
-		filepath = self.config.ImageFilePath + strings.ToUpper(randtext[0:2]+"/"+randtext[2:4]) + "/" + randtext[5:] + TimeHex(1)
+		filepath = self.config.ImageFilePath + strings.ToUpper(randtext[0:2]+"/"+randtext[2:4]+"/"+randtext[5:]+TimeHex(1))
 	}
 	err = self.storage.WriteFileEx(filepath, strings.ToLower("image/"+format), fmt.Sprintf("%dx%d", config.Width, config.Height), imagedata, options)
 	if err != nil {
