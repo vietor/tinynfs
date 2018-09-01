@@ -8,6 +8,7 @@ import (
 	"image/gif"
 	"image/jpeg"
 	"image/png"
+	"io"
 	"io/ioutil"
 	"math"
 	"net/http"
@@ -36,6 +37,7 @@ func (self *HttpServer) startImage() {
 	)
 	serveMux.HandleFunc("/", self.handleImageGet)
 	serveMux.HandleFunc("/upload", self.handleImageUpload)
+	serveMux.HandleFunc("/uploads", self.handleImageUploadMore)
 	serveMux.HandleFunc("/upload/file", self.handleImageUploadFile)
 	err := server.Serve(self.imageListener)
 	if err != nil && !self.closed {
@@ -57,19 +59,6 @@ func (self *HttpServer) parseThumbnailSize(size string) (int, int) {
 		return 0, 0
 	}
 	return int(width), int(height)
-}
-
-func (self *HttpServer) parseThumbnailPath(filepath string) (string, int, int, error) {
-	n := strings.LastIndex(filepath, "_")
-	size := filepath[n+1:]
-	if _, ok := self.config.ImageThumbnailSizes[size]; !ok {
-		return "", 0, 0, ErrThumbnailSize
-	}
-	width, height := self.parseThumbnailSize(size)
-	if width == 0 || height == 0 {
-		return "", 0, 0, ErrThumbnailSize
-	}
-	return filepath[:n], int(width), int(height), nil
 }
 
 func (self *HttpServer) handleImageGet(res http.ResponseWriter, req *http.Request) {
@@ -102,11 +91,20 @@ func (self *HttpServer) handleImageGet(res http.ResponseWriter, req *http.Reques
 	)
 
 	if m, _ := regexp.MatchString("_[0-9]+x[0-9]+$", filepath); m {
-		originpath, askwidth, askheight, err = self.parseThumbnailPath(filepath)
-		if err != nil {
-			xerr = err
+		n := strings.LastIndex(filepath, "_")
+		size := filepath[n+1:]
+		if _, ok := self.config.ImageThumbnailSizes[size]; !ok {
+			xerr = ErrThumbnailSize
 			return
 		}
+		width, height := self.parseThumbnailSize(size)
+		if width == 0 || height == 0 {
+			xerr = ErrThumbnailSize
+			return
+		}
+		originpath = filepath[:n]
+		askwidth = int(width)
+		askheight = int(height)
 	}
 
 	filemime, metadata, filedata, err = self.storage.ReadFile(filepath)
@@ -202,6 +200,32 @@ func (self *HttpServer) handleImageGet(res http.ResponseWriter, req *http.Reques
 	xdata = imagedata
 }
 
+func (self *HttpServer) storeImageToFile(filepath string, dataimage io.Reader, options *WriteOptions) (map[string]interface{}, error) {
+	imagedata, err := ioutil.ReadAll(dataimage)
+	if err != nil {
+		return nil, err
+	}
+	reader := bytes.NewReader(imagedata)
+	config, format, err := image.DecodeConfig(reader)
+	if err != nil {
+		return nil, ErrMediaType
+	}
+	if len(filepath) < 1 {
+		randtext := RandHex(10)
+		filepath = self.config.ImageFilePath + strings.ToUpper(randtext[0:2]+"/"+randtext[2:4]) + "/" + randtext[5:] + TimeHex(1)
+	}
+	err = self.storage.WriteFileEx(filepath, strings.ToLower("image/"+format), fmt.Sprintf("%dx%d", config.Width, config.Height), imagedata, options)
+	if err != nil {
+		return nil, err
+	}
+	imageout := map[string]interface{}{}
+	imageout["size"] = len(imagedata)
+	imageout["width"] = config.Width
+	imageout["height"] = config.Height
+	imageout["image_url"] = filepath
+	return imageout, nil
+}
+
 func (self *HttpServer) handleImageUpload(res http.ResponseWriter, req *http.Request) {
 	if req.Method != "POST" {
 		http.Error(res, http.StatusText(http.StatusMethodNotAllowed), http.StatusMethodNotAllowed)
@@ -219,30 +243,50 @@ func (self *HttpServer) handleImageUpload(res http.ResponseWriter, req *http.Req
 		xerr = ErrParam
 		return
 	}
-	imagedata, err := ioutil.ReadAll(dataimage)
+	imageout, err := self.storeImageToFile("", dataimage, nil)
 	if err != nil {
 		xerr = err
 		return
 	}
+	for k, v := range imageout {
+		xdata[k] = v
+	}
+}
 
-	reader := bytes.NewReader(imagedata)
-	config, format, err := image.DecodeConfig(reader)
-	if err != nil {
-		xerr = ErrMediaType
+func (self *HttpServer) handleImageUploadMore(res http.ResponseWriter, req *http.Request) {
+	if req.Method != "POST" {
+		http.Error(res, http.StatusText(http.StatusMethodNotAllowed), http.StatusMethodNotAllowed)
 		return
 	}
 
-	randtext := RandHex(10)
-	filepath := self.config.ImageFilePath + strings.ToUpper(randtext[0:2]+"/"+randtext[2:4]) + "/" + randtext[5:] + TimeHex(1)
-	err = self.storage.WriteFile(filepath, strings.ToLower("image/"+format), fmt.Sprintf("%dx%d", config.Width, config.Height), imagedata)
-	if err != nil {
+	var (
+		xerr  error
+		xdata = map[string]interface{}{}
+	)
+	defer self.httpSendJsonData(res, req, &xerr, xdata)
+
+	if err := req.ParseMultipartForm(32 * 1024 * 1024); err != nil {
 		xerr = err
 		return
 	}
-	xdata["size"] = len(imagedata)
-	xdata["width"] = config.Width
-	xdata["height"] = config.Height
-	xdata["image_url"] = filepath
+
+	for key, mfiles := range req.MultipartForm.File {
+		dataimage, err := mfiles[0].Open()
+		if err != nil {
+			xdata[key] = map[string]string{
+				"error": err.Error(),
+			}
+			continue
+		}
+		imageout, err := self.storeImageToFile("", dataimage, nil)
+		if err != nil {
+			xdata[key] = map[string]string{
+				"error": err.Error(),
+			}
+			continue
+		}
+		xdata[key] = imageout
+	}
 }
 
 func (self *HttpServer) handleImageUploadFile(res http.ResponseWriter, req *http.Request) {
@@ -262,32 +306,19 @@ func (self *HttpServer) handleImageUploadFile(res http.ResponseWriter, req *http
 		xerr = ErrParam
 		return
 	}
-
 	dataimage, _, err := req.FormFile("imagedata")
 	if err != nil {
 		xerr = ErrParam
 		return
 	}
-	imagedata, err := ioutil.ReadAll(dataimage)
+	imageout, err := self.storeImageToFile(filepath, dataimage, &WriteOptions{
+		Overwrite: false,
+	})
 	if err != nil {
 		xerr = err
 		return
 	}
-
-	reader := bytes.NewReader(imagedata)
-	config, format, err := image.DecodeConfig(reader)
-	if err != nil {
-		xerr = ErrMediaType
-		return
+	for k, v := range imageout {
+		xdata[k] = v
 	}
-
-	err = self.storage.WriteFile(filepath, strings.ToLower("image/"+format), fmt.Sprintf("%dx%d", config.Width, config.Height), imagedata)
-	if err != nil {
-		xerr = err
-		return
-	}
-	xdata["size"] = len(imagedata)
-	xdata["width"] = config.Width
-	xdata["height"] = config.Height
-	xdata["image_url"] = filepath
 }

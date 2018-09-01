@@ -53,6 +53,7 @@ func (self *HttpServer) httpSendByteData(res http.ResponseWriter, req *http.Requ
 }
 
 func (self *HttpServer) httpSendJsonData(res http.ResponseWriter, req *http.Request, err *error, data map[string]interface{}) {
+	res.Header().Set("Content-Type", "application/json;charset=utf-8")
 	result := map[string]interface{}{}
 	if *err == nil {
 		result["code"] = 0
@@ -62,7 +63,6 @@ func (self *HttpServer) httpSendJsonData(res http.ResponseWriter, req *http.Requ
 		result["message"] = (*err).Error()
 		res.WriteHeader(self.getHttpStatusCode(*err))
 	}
-	res.Header().Set("Content-Type", "application/json;charset=utf-8")
 	json.NewEncoder(res).Encode(result)
 }
 
