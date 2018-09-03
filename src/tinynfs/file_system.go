@@ -172,9 +172,14 @@ func (self *FileSystem) DeleteFile(filepath string) error {
 	return err
 }
 
-func (self *FileSystem) Snapshot(force bool, reserve int) (string, error) {
-	if !force && self.timeOnSnapshot == self.timeOnUpdate {
-		return "", nil
+func (self *FileSystem) Snapshot(force bool) (string, error) {
+	if !force {
+		if self.timeOnSnapshot == self.timeOnUpdate {
+			return "", nil
+		}
+		if self.timeOnSnapshot+self.config.SnapshotInteval > time.Now().UnixNano() {
+			return "", nil
+		}
 	}
 	sspath := filepath.Join(self.root, "snapshots")
 	if err := os.MkdirAll(sspath, 0777); err != nil {
@@ -197,9 +202,9 @@ func (self *FileSystem) Snapshot(force bool, reserve int) (string, error) {
 				names = append(names, name)
 			}
 		}
-		if len(names) > reserve {
+		if len(names) > self.config.SnapshotReserve {
 			sort.Strings(names)
-			names = names[:len(names)-reserve]
+			names = names[:len(names)-self.config.SnapshotReserve]
 			for _, name := range names {
 				os.Remove(filepath.Join(sspath, name))
 			}

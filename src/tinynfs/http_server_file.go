@@ -129,7 +129,7 @@ func (self *HttpServer) handleAdminSnapshot(res http.ResponseWriter, req *http.R
 	)
 	defer self.httpSendJsonData(res, req, &xerr, xdata)
 
-	ssfile, err := self.storage.Snapshot(true, 2)
+	ssfile, err := self.storage.Snapshot(true)
 	if err != nil {
 		xerr = err
 		return

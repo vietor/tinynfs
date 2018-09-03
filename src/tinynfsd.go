@@ -8,6 +8,7 @@ import (
 	"os/signal"
 	"path/filepath"
 	"syscall"
+	"time"
 	"tinynfs"
 )
 
@@ -87,10 +88,18 @@ func main() {
 		storage.Close()
 		log.Fatalln(err)
 	}
-	StartSignal(server, storage)
+
+	ticker := time.NewTicker(time.Second * 30)
+	go func() {
+		for _ = range ticker.C {
+			storage.Snapshot(false)
+		}
+	}()
+	StartSignal(ticker, server, storage)
+
 }
 
-func StartSignal(server *tinynfs.HttpServer, storage *tinynfs.FileSystem) {
+func StartSignal(ticker *time.Ticker, server *tinynfs.HttpServer, storage *tinynfs.FileSystem) {
 	var (
 		sc chan os.Signal
 		s  os.Signal
@@ -101,6 +110,7 @@ func StartSignal(server *tinynfs.HttpServer, storage *tinynfs.FileSystem) {
 		s = <-sc
 		switch s {
 		case syscall.SIGQUIT, syscall.SIGTERM, syscall.SIGINT, syscall.SIGSTOP:
+			ticker.Stop()
 			server.Close()
 			storage.Close()
 			return

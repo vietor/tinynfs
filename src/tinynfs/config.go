@@ -19,8 +19,10 @@ type Network struct {
 }
 
 type Storage struct {
-	DiskRemain    int64
-	VolumeMaxSize int64
+	DiskRemain      int64
+	VolumeMaxSize   int64
+	SnapshotInteval int64
+	SnapshotReserve int
 }
 
 type Config struct {
@@ -43,6 +45,8 @@ func (self *Config) Dump() string {
 	lines = append(lines, "network.image.thumbnail.sizes="+strings.Join(sizes, ","))
 	lines = append(lines, fmt.Sprintf("storage.disk.remain=%d #Bytes", self.Storage.DiskRemain))
 	lines = append(lines, fmt.Sprintf("storage.volume.maxsize=%d #Bytes", self.Storage.VolumeMaxSize))
+	lines = append(lines, fmt.Sprintf("storage.snapshot.interval=%d #Seconds", self.Storage.SnapshotInteval))
+	lines = append(lines, fmt.Sprintf("storage.snapshot.reserve=%d", self.Storage.SnapshotReserve))
 	return strings.Join(lines, "\n")
 }
 
@@ -95,8 +99,10 @@ func NewConfig(filepath string) (*Config, error) {
 			},
 		},
 		Storage: &Storage{
-			DiskRemain:    50 * 1024 * 1024,
-			VolumeMaxSize: 5 * 1024 * 1024 * 1024,
+			DiskRemain:      50 * 1024 * 1024,
+			VolumeMaxSize:   5 * 1024 * 1024 * 1024,
+			SnapshotInteval: 1800,
+			SnapshotReserve: 3,
 		},
 	}
 
@@ -173,6 +179,20 @@ func NewConfig(filepath string) (*Config, error) {
 				return nil, fmt.Errorf("line %d: %s", no, err)
 			} else {
 				config.Storage.VolumeMaxSize = int64(size)
+			}
+		case "storage.snapshot.interval":
+			count, err := strconv.ParseUint(value, 10, 32)
+			if err != nil {
+				return nil, fmt.Errorf("line %d: %s", no, err)
+			} else {
+				config.Storage.SnapshotInteval = int64(count)
+			}
+		case "storage.snapshot.reserve":
+			count, err := strconv.ParseUint(value, 10, 32)
+			if err != nil {
+				return nil, fmt.Errorf("line %d: %s", no, err)
+			} else {
+				config.Storage.SnapshotReserve = int(count)
 			}
 		default:
 			fmt.Printf("ignore line: %d: %s\n", no, line)

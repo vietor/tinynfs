@@ -13,8 +13,10 @@ func TestFileSystem(t *testing.T) {
 
 	filename := "/a/a"
 	fs, err := NewFileSystem(filepath.Join("../../test", "data-fs"), &Storage{
-		DiskRemain:    4 * 1024 * 1024,
-		VolumeMaxSize: 4 * 1024 * 1024 * 1024,
+		DiskRemain:      4 * 1024 * 1024,
+		VolumeMaxSize:   4 * 1024 * 1024 * 1024,
+		SnapshotInteval: 600,
+		SnapshotReserve: 3,
 	})
 	if err != nil {
 		t.Error("Create", err)
@@ -31,7 +33,7 @@ func TestFileSystem(t *testing.T) {
 	} else {
 		t.Log("Read file success:  " + mime + " " + metadata + " - " + string(data))
 	}
-	ssfile, err := fs.Snapshot(true, 0)
+	ssfile, err := fs.Snapshot(true)
 	if err != nil {
 		t.Error("Snapshot error", err)
 	} else {
