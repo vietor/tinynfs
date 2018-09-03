@@ -20,12 +20,12 @@ func TestRandHex(t *testing.T) {
 	}
 }
 
-func TestGetDiskStat(t *testing.T) {
-	info, err := GetDiskStat("../../test")
+func TestGetPathDiskStat(t *testing.T) {
+	info, err := GetPathDiskStat("../../test")
 	if err != nil {
-		t.Error("GetDiskStat error", err)
+		t.Error("GetPathDiskStat error", err)
 	} else {
-		t.Logf("GetDiskStat success: %d, %d, %d", info.Size, info.Used, info.Free)
+		t.Logf("GetPathDiskStat success: %d, %d, %d", info.Size, info.Used, info.Free)
 	}
 }
 

@@ -8,7 +8,9 @@ var (
 	ErrMediaType     = errors.New("unsupported media type")
 	ErrThumbnailSize = errors.New("unacceptable thumbnail size")
 
-	ErrDiskFully         = errors.New("not enough disk space")
-	ErrFileSystemBusy    = errors.New("file system already lock")
-	ErrVolumeStorageBusy = errors.New("volume storage already lock")
+	ErrDiskFully          = errors.New("not enough disk space")
+	ErrFileSystemBusy     = errors.New("file system already lock")
+	ErrFileSystemFully    = errors.New("file system diskspace fully")
+	ErrVolumeStorageBusy  = errors.New("volume storage diskspace fully")
+	ErrVolumeStorageFully = errors.New("volume storage already lock")
 )

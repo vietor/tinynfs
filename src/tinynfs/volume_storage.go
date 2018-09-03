@@ -116,6 +116,10 @@ func (self *VolumeStorage) mkWriteVolume() (*VolumeFile, error) {
 	return v, err
 }
 
+func (self *VolumeStorage) GetDiskStat() (*DiskStat, error) {
+	return GetPathDiskStat(self.root)
+}
+
 func (self *VolumeStorage) ReadFile(id int64, offset int64, size int) ([]byte, error) {
 	self.volumeLock.Lock()
 	v := self.volumeMap[id]

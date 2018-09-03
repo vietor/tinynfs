@@ -130,11 +130,11 @@ func (self *FileSystem) WriteFileEx(filepath string, filemime string, metadata s
 		options = defaultWriteOptions
 	}
 
-	dstat, err := GetDiskStat(self.root)
+	dstat, err := GetPathDiskStat(self.root)
 	if err != nil {
 		return err
 	} else if dstat.Free < uint64(self.config.DiskRemain) {
-		return ErrDiskFully
+		return ErrFileSystemFully
 	}
 
 	oldnode, _ := self.getFileNode(fileBucket, []byte(filepath))
@@ -142,6 +142,12 @@ func (self *FileSystem) WriteFileEx(filepath string, filemime string, metadata s
 		return os.ErrExist
 	}
 
+	dstat, err = self.volumeStroage.GetDiskStat()
+	if err != nil {
+		return err
+	} else if dstat.Free < uint64(self.config.DiskRemain) {
+		return ErrVolumeStorageFully
+	}
 	volumeId, volumeOffset, err := self.volumeStroage.WriteFile(data)
 	if err != nil {
 		return err

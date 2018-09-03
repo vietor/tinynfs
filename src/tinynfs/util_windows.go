@@ -52,7 +52,7 @@ func SysUnflock(fd int) error {
 	return unlockFileEx(syscall.Handle(fd), 0, 1, 0, &syscall.Overlapped{})
 }
 
-func GetDiskStat(path string) (*DiskStat, error) {
+func GetPathDiskStat(path string) (*DiskStat, error) {
 	lpFreeBytesAvailable := int64(0)
 	lpTotalNumberOfBytes := int64(0)
 	lpTotalNumberOfFreeBytes := int64(0)

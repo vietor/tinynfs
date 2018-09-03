@@ -14,7 +14,7 @@ func SysUnflock(fd int) error {
 	return syscall.Flock(fd, syscall.LOCK_UN)
 }
 
-func GetDiskStat(path string) (*DiskStat, error) {
+func GetPathDiskStat(path string) (*DiskStat, error) {
 	fs := syscall.Statfs_t{}
 	if err := syscall.Statfs(path, &fs); err != nil {
 		return nil, err
