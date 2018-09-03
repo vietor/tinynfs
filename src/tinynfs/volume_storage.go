@@ -77,12 +77,12 @@ func (self *VolumeStorage) Close() {
 }
 
 func (self *VolumeStorage) mkVolumeFile(id int64, size int64) (*VolumeFile, error) {
-	filepath := self.root + fmt.Sprintf("/volume-%d", id)
-	w, err := os.OpenFile(filepath, os.O_CREATE|os.O_WRONLY, 0644)
+	fullpath := self.root + fmt.Sprintf("/volume-%d", id)
+	w, err := os.OpenFile(fullpath, os.O_CREATE|os.O_WRONLY, 0644)
 	if err != nil {
 		return nil, err
 	}
-	r, err := os.OpenFile(filepath, os.O_RDONLY, 0644)
+	r, err := os.OpenFile(fullpath, os.O_RDONLY, 0644)
 	if err != nil {
 		w.Close()
 		return nil, err
