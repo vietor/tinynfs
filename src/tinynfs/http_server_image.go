@@ -24,9 +24,61 @@ func init() {
 	image.RegisterFormat("jpeg", "jpeg", jpeg.Decode, jpeg.DecodeConfig)
 }
 
-var (
-	imageScaler = draw.NearestNeighbor
-)
+func resizeImage(filemime string, filedata []byte, originwidth int, originheight int, askwidth int, askheight int) (string, []byte, int, int, error) {
+	reader := bytes.NewReader(filedata)
+	origin, _, err := image.Decode(reader)
+	if err != nil {
+		return "", nil, 0, 0, ErrMediaType
+	}
+
+	// Calculate target image size
+	fixwidth := originwidth
+	fixheight := originheight
+	if fixwidth > fixheight {
+		if fixwidth > askwidth {
+			fixheight = int(math.Floor(float64(askwidth) * float64(fixheight) / float64(fixwidth)))
+			fixwidth = askwidth
+		}
+	} else if fixwidth < fixheight {
+		if fixheight > askheight {
+			fixwidth = int(math.Floor(float64(askheight) * float64(fixwidth) / float64(fixheight)))
+			fixheight = askheight
+		}
+	} else {
+		side := askwidth
+		if askwidth > askheight {
+			side = askheight
+		}
+		fixwidth = side
+		fixheight = side
+	}
+
+	// Scale the image
+	target := image.NewRGBA(image.Rect(0, 0, fixwidth, fixheight))
+	scaler := draw.ApproxBiLinear
+	if fixwidth*5 < originwidth || fixheight*5 < originheight {
+		scaler = draw.BiLinear
+	}
+	scaler.Scale(target, target.Bounds(), origin, origin.Bounds(), draw.Over, nil)
+	buffer := bytes.NewBuffer(nil)
+	if filemime == "image/jpeg" {
+		jopt := &jpeg.Options{
+			Quality: 70,
+		}
+		err = jpeg.Encode(buffer, target, jopt)
+		if err != nil {
+			return "", nil, 0, 0, err
+		}
+	} else { // Gif to png
+		err = png.Encode(buffer, target)
+		if err != nil {
+			return "", nil, 0, 0, err
+		}
+		filemime = "image/png"
+	}
+
+	return filemime, buffer.Bytes(), fixwidth, fixheight, nil
+}
 
 func (self *HttpServer) startImage() {
 	var (
@@ -45,7 +97,7 @@ func (self *HttpServer) startImage() {
 	}
 }
 
-func (self *HttpServer) parseThumbnailSize(size string) (int, int) {
+func (self *HttpServer) parseImageSize(size string) (int, int) {
 	fields := strings.Split(size, "x")
 	if len(fields) != 2 {
 		return 0, 0
@@ -97,7 +149,7 @@ func (self *HttpServer) handleImageGet(res http.ResponseWriter, req *http.Reques
 			xerr = ErrThumbnailSize
 			return
 		}
-		width, height := self.parseThumbnailSize(size)
+		width, height := self.parseImageSize(size)
 		if width == 0 || height == 0 {
 			xerr = ErrThumbnailSize
 			return
@@ -107,6 +159,7 @@ func (self *HttpServer) handleImageGet(res http.ResponseWriter, req *http.Reques
 		askheight = int(height)
 	}
 
+	// Read thumbnail file
 	filemime, metadata, filedata, err = self.storage.ReadFile(filepath)
 	if err == nil {
 		xmime = filemime
@@ -117,18 +170,17 @@ func (self *HttpServer) handleImageGet(res http.ResponseWriter, req *http.Reques
 		return
 	}
 
+	// Read origin file
 	filemime, metadata, filedata, err = self.storage.ReadFile(originpath)
 	if err != nil {
 		xerr = err
 		return
 	}
-
-	originwidth, originheight := self.parseThumbnailSize(metadata)
+	originwidth, originheight := self.parseImageSize(metadata)
 	if originwidth == 0 || originheight == 0 {
 		xerr = ErrThumbnailSize
 		return
 	}
-
 	// Ignore image scale
 	if originwidth < askwidth && originheight < askheight {
 		xmime = filemime
@@ -136,62 +188,18 @@ func (self *HttpServer) handleImageGet(res http.ResponseWriter, req *http.Reques
 		return
 	}
 
-	reader := bytes.NewReader(filedata)
-	origin, _, err := image.Decode(reader)
+	// Create thumbnail image
+	imagemime, imagedata, fixwidth, fixheight, err := resizeImage(filemime, filedata, originwidth, originheight, askwidth, askheight)
 	if err != nil {
-		xerr = ErrMediaType
+		xerr = err
 		return
 	}
-
-	// Calculate target image size
-	fixwidth := originwidth
-	fixheight := originheight
-	if fixwidth > fixheight {
-		if fixwidth > askwidth {
-			fixheight = int(math.Floor(float64(askwidth) * float64(fixheight) / float64(fixwidth)))
-			fixwidth = askwidth
-		}
-	} else if fixwidth < fixheight {
-		if fixheight > askheight {
-			fixwidth = int(math.Floor(float64(askheight) * float64(fixwidth) / float64(fixheight)))
-			fixheight = askheight
-		}
-	} else {
-		side := askwidth
-		if askwidth > askheight {
-			side = askheight
-		}
-		fixwidth = side
-		fixheight = side
-	}
-
-	target := image.NewRGBA(image.Rect(0, 0, fixwidth, fixheight))
-	imageScaler.Scale(target, target.Bounds(), origin, origin.Bounds(), draw.Over, nil)
-
-	buffer := bytes.NewBuffer(nil)
-	if filemime == "image/jpeg" {
-		jopt := &jpeg.Options{
-			Quality: 70,
-		}
-		err = jpeg.Encode(buffer, target, jopt)
-		if err != nil {
-			xerr = err
-			return
-		}
-	} else {
-		err = png.Encode(buffer, target)
-		if err != nil {
-			xerr = err
-			return
-		}
-		filemime = "image/png"
-	}
-
-	options := &WriteOptions{
+	filepath = fmt.Sprintf("%s_%dx%d", originpath, askwidth, askheight)
+	metadata = fmt.Sprintf("%dx%d", fixwidth, fixheight)
+	woptions := &WriteOptions{
 		Overwrite: false,
 	}
-	imagedata := buffer.Bytes()
-	err = self.storage.WriteFileEx(fmt.Sprintf("%s_%dx%d", originpath, askwidth, askheight), filemime, fmt.Sprintf("%dx%d", fixwidth, fixheight), imagedata, options)
+	err = self.storage.WriteFileEx(filepath, imagemime, metadata, imagedata, woptions)
 	if err != nil && err != os.ErrExist {
 		xerr = err
 		return
@@ -213,7 +221,9 @@ func (self *HttpServer) storeImageToFile(filepath string, dataimage io.Reader, o
 	if len(filepath) < 1 {
 		filepath = self.config.ImageFilePath + RandHex(10) + TimeHex(0)
 	}
-	err = self.storage.WriteFileEx(filepath, strings.ToLower("image/"+format), fmt.Sprintf("%dx%d", config.Width, config.Height), imagedata, options)
+	imagemime := strings.ToLower("image/" + format)
+	metadata := fmt.Sprintf("%dx%d", config.Width, config.Height)
+	err = self.storage.WriteFileEx(filepath, imagemime, metadata, imagedata, options)
 	if err != nil {
 		return nil, err
 	}
