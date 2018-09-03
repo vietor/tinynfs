@@ -54,7 +54,7 @@ func (self *VolumeStorage) init() error {
 			if err != nil || id < VolumeValidateTimestamp {
 				log.Println(fmt.Sprintf("not volume file %s", name))
 			} else {
-				v, err := self.mkVolumeFile(id, file.Size())
+				v, err := self.makeFile(id, file.Size())
 				if err != nil {
 					log.Println(fmt.Sprintf("load failed %s %s", name, err))
 				} else {
@@ -80,7 +80,7 @@ func (self *VolumeStorage) Close() {
 	self.volumePlock.Unlock()
 }
 
-func (self *VolumeStorage) mkVolumeFile(id int64, size int64) (*VolumeFile, error) {
+func (self *VolumeStorage) makeFile(id int64, size int64) (*VolumeFile, error) {
 	fullpath := self.root + fmt.Sprintf("/volume-%d", id)
 	w, err := os.OpenFile(fullpath, os.O_CREATE|os.O_WRONLY, 0644)
 	if err != nil {
@@ -100,7 +100,7 @@ func (self *VolumeStorage) mkVolumeFile(id int64, size int64) (*VolumeFile, erro
 	return v, nil
 }
 
-func (self *VolumeStorage) mkWriteVolume() (*VolumeFile, error) {
+func (self *VolumeStorage) requireVolume() (*VolumeFile, error) {
 	self.volumeLock.Lock()
 	defer self.volumeLock.Unlock()
 
@@ -109,7 +109,7 @@ func (self *VolumeStorage) mkWriteVolume() (*VolumeFile, error) {
 			return v, nil
 		}
 	}
-	v, err := self.mkVolumeFile(time.Now().UnixNano(), 0)
+	v, err := self.makeFile(time.Now().UnixNano(), 0)
 	if err == nil {
 		self.volumes[v.id] = v
 		self.volumeMap[v.id] = v
@@ -141,7 +141,7 @@ func (self *VolumeStorage) ReadFile(id int64, offset int64, size int) ([]byte, e
 }
 
 func (self *VolumeStorage) WriteFile(data []byte) (int64, int64, error) {
-	v, err := self.mkWriteVolume()
+	v, err := self.requireVolume()
 	if err != nil {
 		return 0, 0, err
 	}
