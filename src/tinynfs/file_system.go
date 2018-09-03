@@ -44,6 +44,9 @@ var (
 func (self *FileSystem) init() error {
 	db, err := bolt.Open(filepath.Join(self.root, "storage.db"), 0644, &bolt.Options{Timeout: 1 * time.Second})
 	if err != nil {
+		if err == bolt.ErrTimeout {
+			err = ErrFileSystemBusy
+		}
 		return err
 	}
 	vs, err := NewVolumeStorage(filepath.Join(self.root, "volumes"), self.config.VolumeMaxSize)

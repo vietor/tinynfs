@@ -38,7 +38,7 @@ func (self *VolumeStorage) init() error {
 	}
 	if ok, err := self.volumePlock.Lock(); err != nil || !ok {
 		if err == nil {
-			err = ErrVolumeUsed
+			err = ErrVolumeStorageBusy
 		}
 		return err
 	}
