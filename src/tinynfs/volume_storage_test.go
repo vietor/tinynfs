@@ -11,7 +11,7 @@ var (
 )
 
 func TestVolumeStorage(t *testing.T) {
-	bstorage, _ := NewVolumeStorage(filepath.Join("../../test", "data-volumes"), int64(len(volumeTestBuffer)+1))
+	bstorage, _ := NewVolumeStorage(filepath.Join("../../test", "data-volumes"), int64(len(volumeTestBuffer)+1), 50*1024)
 	id, offset, err := bstorage.WriteFile(volumeTestBuffer)
 	if err != nil {
 		t.Error("WriteFile error", err)

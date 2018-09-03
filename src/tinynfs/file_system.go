@@ -49,7 +49,7 @@ func (self *FileSystem) init() error {
 		}
 		return err
 	}
-	vs, err := NewVolumeStorage(filepath.Join(self.root, "volumes"), self.config.VolumeMaxSize)
+	vs, err := NewVolumeStorage(filepath.Join(self.root, "volumes"), self.config.VolumeMaxSize, self.config.DiskRemain)
 	if err != nil {
 		db.Close()
 		return err
@@ -142,12 +142,6 @@ func (self *FileSystem) WriteFileEx(filepath string, filemime string, metadata s
 		return os.ErrExist
 	}
 
-	dstat, err = self.volumeStroage.GetDiskStat()
-	if err != nil {
-		return err
-	} else if dstat.Free < uint64(self.config.DiskRemain) {
-		return ErrVolumeStorageFully
-	}
 	volumeId, volumeOffset, err := self.volumeStroage.WriteFile(data)
 	if err != nil {
 		return err

@@ -26,6 +26,7 @@ type VolumeFile struct {
 type VolumeStorage struct {
 	root        string
 	limit       int64
+	remain      int64
 	volumes     map[int64]*VolumeFile
 	volumeMap   map[int64]*VolumeFile
 	volumeLock  sync.Mutex
@@ -141,6 +142,13 @@ func (self *VolumeStorage) WriteFile(data []byte) (int64, int64, error) {
 		return 0, 0, err
 	}
 
+	dstat, err := GetPathDiskStat(self.root)
+	if err != nil {
+		return 0, 0, err
+	} else if dstat.Free < uint64(self.remain) {
+		return 0, 0, ErrVolumeStorageFully
+	}
+
 	v.wLock.Lock()
 	defer v.wLock.Unlock()
 
@@ -159,7 +167,7 @@ func (self *VolumeStorage) WriteFile(data []byte) (int64, int64, error) {
 	return v.id, offset, nil
 }
 
-func NewVolumeStorage(root string, limit int64) (*VolumeStorage, error) {
+func NewVolumeStorage(root string, limit int64, remain int64) (*VolumeStorage, error) {
 	if err := os.MkdirAll(root, 0777); err != nil {
 		return nil, err
 	}
@@ -167,6 +175,7 @@ func NewVolumeStorage(root string, limit int64) (*VolumeStorage, error) {
 	storage := &VolumeStorage{
 		root:        root,
 		limit:       limit,
+		remain:      remain,
 		volumes:     map[int64]*VolumeFile{},
 		volumeMap:   map[int64]*VolumeFile{},
 		volumePlock: NewProcessLock(root + "/volume.lock"),
