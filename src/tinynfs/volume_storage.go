@@ -24,16 +24,20 @@ type VolumeFile struct {
 }
 
 type VolumeStorage struct {
-	root       string
-	limit      int64
-	volumes    map[int64]*VolumeFile
-	volumeMap  map[int64]*VolumeFile
-	volumeLock sync.Mutex
+	root        string
+	limit       int64
+	volumes     map[int64]*VolumeFile
+	volumeMap   map[int64]*VolumeFile
+	volumeLock  sync.Mutex
+	volumePlock *ProcessLock
 }
 
 func (self *VolumeStorage) init() error {
 	if time.Now().UnixNano() < VolumeValidateTimestamp {
 		return ErrTimestamp
+	}
+	if err := self.volumePlock.Lock(); err != nil {
+		return err
 	}
 	files, err := ioutil.ReadDir(self.root)
 	if err != nil {
@@ -69,6 +73,7 @@ func (self *VolumeStorage) Close() {
 		v.rFile.Close()
 		v.wFile.Close()
 	}
+	self.volumePlock.Unlock()
 }
 
 func (self *VolumeStorage) mkVolumeFile(id int64, size int64) (*VolumeFile, error) {
@@ -153,10 +158,11 @@ func NewVolumeStorage(root string, limit int64) (*VolumeStorage, error) {
 	}
 
 	storage := &VolumeStorage{
-		root:      root,
-		limit:     limit,
-		volumes:   map[int64]*VolumeFile{},
-		volumeMap: map[int64]*VolumeFile{},
+		root:        root,
+		limit:       limit,
+		volumes:     map[int64]*VolumeFile{},
+		volumeMap:   map[int64]*VolumeFile{},
+		volumePlock: NewProcessLock(root + "/volume.lock"),
 	}
 	if err := storage.init(); err != nil {
 		return nil, err
