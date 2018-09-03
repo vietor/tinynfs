@@ -90,7 +90,7 @@ func NewConfig(filepath string) (*Config, error) {
 			Tcp:           "tcp4",
 			FileBind:      ":7119",
 			ImageBind:     ":7120",
-			ImageFilePath: "/group1/M00/",
+			ImageFilePath: "/image1/",
 			ImageThumbnailSizes: map[string]bool{
 				"192x192": true,
 				"240x240": true,
