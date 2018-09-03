@@ -102,7 +102,7 @@ func NewConfig(filepath string) (*Config, error) {
 			DiskRemain:      50 * 1024 * 1024,
 			VolumeMaxSize:   5 * 1024 * 1024 * 1024,
 			SnapshotInteval: 1800,
-			SnapshotReserve: 3,
+			SnapshotReserve: 2,
 		},
 	}
 
