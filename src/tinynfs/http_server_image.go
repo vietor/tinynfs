@@ -226,7 +226,7 @@ func (self *HttpServer) storeImageToFile(filepath string, dataimage io.Reader, o
 }
 
 func (self *HttpServer) handleImageUpload(res http.ResponseWriter, req *http.Request) {
-	if req.Method != "POST" {
+	if req.Method != "POST" && req.Method != "PUT" {
 		http.Error(res, http.StatusText(http.StatusMethodNotAllowed), http.StatusMethodNotAllowed)
 		return
 	}
@@ -242,7 +242,9 @@ func (self *HttpServer) handleImageUpload(res http.ResponseWriter, req *http.Req
 		xerr = ErrParam
 		return
 	}
-	imageout, err := self.storeImageToFile("", dataimage, nil)
+	imageout, err := self.storeImageToFile("", dataimage, &WriteOptions{
+		Overwrite: req.Method == "PUT",
+	})
 	if err != nil {
 		xerr = err
 		return
@@ -253,7 +255,7 @@ func (self *HttpServer) handleImageUpload(res http.ResponseWriter, req *http.Req
 }
 
 func (self *HttpServer) handleImageUploadMore(res http.ResponseWriter, req *http.Request) {
-	if req.Method != "POST" {
+	if req.Method != "POST" && req.Method != "PUT" {
 		http.Error(res, http.StatusText(http.StatusMethodNotAllowed), http.StatusMethodNotAllowed)
 		return
 	}
@@ -269,6 +271,9 @@ func (self *HttpServer) handleImageUploadMore(res http.ResponseWriter, req *http
 		return
 	}
 
+	woptions := &WriteOptions{
+		Overwrite: req.Method == "PUT",
+	}
 	for key, mfiles := range req.MultipartForm.File {
 		dataimage, err := mfiles[0].Open()
 		if err != nil {
@@ -277,7 +282,7 @@ func (self *HttpServer) handleImageUploadMore(res http.ResponseWriter, req *http
 			}
 			continue
 		}
-		imageout, err := self.storeImageToFile("", dataimage, nil)
+		imageout, err := self.storeImageToFile("", dataimage, woptions)
 		if err != nil {
 			xdata[key] = map[string]string{
 				"error": err.Error(),
@@ -289,7 +294,7 @@ func (self *HttpServer) handleImageUploadMore(res http.ResponseWriter, req *http
 }
 
 func (self *HttpServer) handleImageUploadFile(res http.ResponseWriter, req *http.Request) {
-	if req.Method != "POST" {
+	if req.Method != "POST" && req.Method != "PUT" {
 		http.Error(res, http.StatusText(http.StatusMethodNotAllowed), http.StatusMethodNotAllowed)
 		return
 	}
@@ -311,7 +316,7 @@ func (self *HttpServer) handleImageUploadFile(res http.ResponseWriter, req *http
 		return
 	}
 	imageout, err := self.storeImageToFile(filepath, dataimage, &WriteOptions{
-		Overwrite: false,
+		Overwrite: req.Method == "PUT",
 	})
 	if err != nil {
 		xerr = err
