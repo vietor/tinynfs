@@ -20,7 +20,6 @@ type Network struct {
 
 type Storage struct {
 	DiskRemain    int64
-	DirectMinSize int64
 	VolumeMaxSize int64
 }
 
@@ -43,7 +42,6 @@ func (self *Config) Dump() string {
 	}
 	lines = append(lines, "network.image.thumbnail.sizes="+strings.Join(sizes, ","))
 	lines = append(lines, fmt.Sprintf("storage.disk.remain=%d #Bytes", self.Storage.DiskRemain))
-	lines = append(lines, fmt.Sprintf("storage.direct.minsize=%d #Bytes", self.Storage.DirectMinSize))
 	lines = append(lines, fmt.Sprintf("storage.volume.maxsize=%d #Bytes", self.Storage.VolumeMaxSize))
 	return strings.Join(lines, "\n")
 }
@@ -98,7 +96,6 @@ func NewConfig(filepath string) (*Config, error) {
 		},
 		Storage: &Storage{
 			DiskRemain:    50 * 1024 * 1024,
-			DirectMinSize: 5 * 1024 * 1024,
 			VolumeMaxSize: 5 * 1024 * 1024 * 1024,
 		},
 	}
@@ -169,13 +166,6 @@ func NewConfig(filepath string) (*Config, error) {
 				return nil, fmt.Errorf("line %d: %s", no, err)
 			} else {
 				config.Storage.DiskRemain = int64(size)
-			}
-		case "storage.direct.minsize":
-			size, err := parseBytes(value)
-			if err != nil {
-				return nil, fmt.Errorf("line %d: %s", no, err)
-			} else {
-				config.Storage.DirectMinSize = int64(size)
 			}
 		case "storage.volume.maxsize":
 			size, err := parseBytes(value)

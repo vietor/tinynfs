@@ -6,8 +6,7 @@ import (
 )
 
 var (
-	fsSmallTestBuffer  = []byte("hello FileSystem small")
-	fsBiggerTestBuffer = []byte("hello FileSystem bigger")
+	fsTestBuffer = []byte("hello FileSystem, ok")
 )
 
 func TestFileSystem(t *testing.T) {
@@ -15,22 +14,21 @@ func TestFileSystem(t *testing.T) {
 	filename := "/a/a"
 	fs, err := NewFileSystem(filepath.Join("../../test", "data-fs"), &Storage{
 		DiskRemain:    4 * 1024 * 1024,
-		DirectMinSize: 4 * 1024 * 1024,
 		VolumeMaxSize: 4 * 1024 * 1024 * 1024,
 	})
 	if err != nil {
 		t.Error("Create", err)
 	}
-	err = fs.WriteFile(filename, "", "", fsSmallTestBuffer)
+	err = fs.WriteFile(filename, "", "", fsTestBuffer)
 	if err != nil {
-		t.Error("Write small file error", err)
+		t.Error("Write file error", err)
 	} else {
-		t.Log("Write small file success")
+		t.Log("Write file success")
 	}
 	mime, metadata, data, err := fs.ReadFile(filename)
 	if err != nil {
-		t.Error("Read small file error", err)
+		t.Error("Read file error", err)
 	} else {
-		t.Log("Read small file success:  " + mime + " " + metadata + " - " + string(data))
+		t.Log("Read file success:  " + mime + " " + metadata + " - " + string(data))
 	}
 }

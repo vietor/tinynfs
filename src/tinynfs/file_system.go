@@ -13,8 +13,6 @@ type FileNode struct {
 	Size         int    `json:"size"`
 	Mime         string `json:"mime"`
 	Metadata     string `json:"metadata"`
-	Storage      int    `json:"storage"` // 0-direct, 1-volume
-	DirectFile   string `json:"direct_file"`
 	VolumeId     int64  `json:"volume_id"`
 	VolumeOffset int64  `json:"volume_offset"`
 }
@@ -23,7 +21,6 @@ type FileSystem struct {
 	root          string
 	config        *Storage
 	storageDB     *bolt.DB
-	directStorage *DirectStorage
 	volumeStroage *VolumeStorage
 }
 
@@ -44,19 +41,12 @@ func (self *FileSystem) init() error {
 	if err != nil {
 		return err
 	}
-	ds, err := NewDirectStorage(filepath.Join(self.root, "directs"))
-	if err != nil {
-		db.Close()
-		return err
-	}
 	vs, err := NewVolumeStorage(filepath.Join(self.root, "volumes"), self.config.VolumeMaxSize)
 	if err != nil {
 		db.Close()
-		ds.Close()
 		return err
 	}
 	self.storageDB = db
-	self.directStorage = ds
 	self.volumeStroage = vs
 	self.storageDB.Update(func(tx *bolt.Tx) error {
 		_, err := tx.CreateBucketIfNotExists(fileBucket)
@@ -78,9 +68,6 @@ func (self *FileSystem) init() error {
 func (self *FileSystem) Close() {
 	if self.storageDB != nil {
 		self.storageDB.Close()
-	}
-	if self.directStorage != nil {
-		self.directStorage.Close()
 	}
 	if self.volumeStroage != nil {
 		self.volumeStroage.Close()
@@ -119,16 +106,11 @@ func (self *FileSystem) ReadFile(filepath string) (string, string, []byte, error
 	if node == nil {
 		return "", "", nil, os.ErrNotExist
 	}
-	var (
-		data []byte
-		err  error
-	)
-	if node.Storage == 0 {
-		data, err = self.directStorage.ReadFile(node.DirectFile)
-	} else {
-		data, err = self.volumeStroage.ReadFile(node.VolumeId, node.VolumeOffset, node.Size)
+	data, err := self.volumeStroage.ReadFile(node.VolumeId, node.VolumeOffset, node.Size)
+	if err != nil {
+		return "", "", nil, os.ErrNotExist
 	}
-	return node.Mime, node.Metadata, data, err
+	return node.Mime, node.Metadata, data, nil
 }
 
 func (self *FileSystem) WriteFile(filepath string, filemime string, metadata string, data []byte) error {
@@ -152,23 +134,11 @@ func (self *FileSystem) WriteFileEx(filepath string, filemime string, metadata s
 		return os.ErrExist
 	}
 
-	var (
-		node *FileNode
-		size = len(data)
-	)
-	if size > int(self.config.DirectMinSize) {
-		directpath, err := self.directStorage.WriteFile("", data)
-		if err != nil {
-			return err
-		}
-		node = &FileNode{size, filemime, metadata, 0, directpath, 0, 0}
-	} else {
-		volumeId, volumeOffset, err := self.volumeStroage.WriteFile(data)
-		if err != nil {
-			return err
-		}
-		node = &FileNode{size, filemime, metadata, 1, "", volumeId, volumeOffset}
+	volumeId, volumeOffset, err := self.volumeStroage.WriteFile(data)
+	if err != nil {
+		return err
 	}
+	node := &FileNode{len(data), filemime, metadata, volumeId, volumeOffset}
 	err = self.putFileNode(fileBucket, []byte(filepath), node)
 	if err == nil && oldnode != nil {
 		self.putFileNode(deleteFileBucket, []byte(fmt.Sprintf("%s\r\n%d", filepath, time.Now().UnixNano())), oldnode)
