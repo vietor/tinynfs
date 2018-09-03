@@ -31,4 +31,10 @@ func TestFileSystem(t *testing.T) {
 	} else {
 		t.Log("Read file success:  " + mime + " " + metadata + " - " + string(data))
 	}
+	ssfile, err := fs.Snapshot(true, 0)
+	if err != nil {
+		t.Error("Snapshot error", err)
+	} else {
+		t.Log("Snapshot file success: " + ssfile)
+	}
 }

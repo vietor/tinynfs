@@ -4,8 +4,11 @@ import (
 	"encoding/json"
 	"fmt"
 	bolt "github.com/etcd-io/bbolt"
+	"io/ioutil"
 	"os"
 	"path/filepath"
+	"regexp"
+	"sort"
 	"time"
 )
 
@@ -18,10 +21,12 @@ type FileNode struct {
 }
 
 type FileSystem struct {
-	root          string
-	config        *Storage
-	storageDB     *bolt.DB
-	volumeStroage *VolumeStorage
+	root           string
+	config         *Storage
+	storageDB      *bolt.DB
+	volumeStroage  *VolumeStorage
+	timeOnUpdate   int64
+	timeOnSnapshot int64
 }
 
 type WriteOptions struct {
@@ -139,9 +144,13 @@ func (self *FileSystem) WriteFileEx(filepath string, filemime string, metadata s
 		return err
 	}
 	node := &FileNode{len(data), filemime, metadata, volumeId, volumeOffset}
+
 	err = self.putFileNode(fileBucket, []byte(filepath), node)
-	if err == nil && oldnode != nil {
-		self.putFileNode(deleteFileBucket, []byte(fmt.Sprintf("%s\r\n%d", filepath, time.Now().UnixNano())), oldnode)
+	if err == nil {
+		self.timeOnUpdate = time.Now().UnixNano()
+		if oldnode != nil {
+			self.putFileNode(deleteFileBucket, []byte(fmt.Sprintf("%s\r\n%d", filepath, time.Now().UnixNano())), oldnode)
+		}
 	}
 	return err
 }
@@ -157,9 +166,46 @@ func (self *FileSystem) DeleteFile(filepath string) error {
 		return bt.Delete([]byte(filepath))
 	})
 	if err == nil {
+		self.timeOnUpdate = time.Now().UnixNano()
 		self.putFileNode(deleteFileBucket, []byte(fmt.Sprintf("%s\r\n%d", filepath, time.Now().UnixNano())), node)
 	}
 	return err
+}
+
+func (self *FileSystem) Snapshot(force bool, reserve int) (string, error) {
+	if !force && self.timeOnSnapshot == self.timeOnUpdate {
+		return "", nil
+	}
+	sspath := filepath.Join(self.root, "snapshots")
+	if err := os.MkdirAll(sspath, 0777); err != nil {
+		return "", err
+	}
+	files, err := ioutil.ReadDir(sspath)
+	if err != nil {
+		return "", err
+	}
+	ssfile := fmt.Sprintf("snapshots/storage.db.%d", time.Now().UnixNano())
+	err = self.storageDB.View(func(tx *bolt.Tx) error {
+		return tx.CopyFile(filepath.Join(self.root, ssfile), 0644)
+	})
+	if err == nil {
+		self.timeOnSnapshot = time.Now().UnixNano()
+		names := []string{}
+		for _, file := range files {
+			name := file.Name()
+			if m, _ := regexp.MatchString("^storage\\.db\\.", name); m {
+				names = append(names, name)
+			}
+		}
+		if len(names) > reserve {
+			sort.Strings(names)
+			names = names[:len(names)-reserve]
+			for _, name := range names {
+				os.Remove(filepath.Join(sspath, name))
+			}
+		}
+	}
+	return ssfile, err
 }
 
 func NewFileSystem(root string, config *Storage) (*FileSystem, error) {

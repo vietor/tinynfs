@@ -17,6 +17,7 @@ func (self *HttpServer) startFile() {
 	serveMux.HandleFunc("/get", self.handleFileGet)
 	serveMux.HandleFunc("/upload", self.handleFileUpload)
 	serveMux.HandleFunc("/delete", self.handleFileDelete)
+	serveMux.HandleFunc("/admin/snapshot", self.handleAdminSnapshot)
 	err := server.Serve(self.fileListener)
 	if err != nil && !self.closed {
 		fmt.Println(err)
@@ -114,4 +115,24 @@ func (self *HttpServer) handleFileDelete(res http.ResponseWriter, req *http.Requ
 		return
 	}
 	xdata["path"] = filepath
+}
+
+func (self *HttpServer) handleAdminSnapshot(res http.ResponseWriter, req *http.Request) {
+	if req.Method != "POST" {
+		http.Error(res, http.StatusText(http.StatusMethodNotAllowed), http.StatusMethodNotAllowed)
+		return
+	}
+
+	var (
+		xerr  error
+		xdata = map[string]interface{}{}
+	)
+	defer self.httpSendJsonData(res, req, &xerr, xdata)
+
+	ssfile, err := self.storage.Snapshot(true, 2)
+	if err != nil {
+		xerr = err
+		return
+	}
+	xdata["path"] = ssfile
 }
