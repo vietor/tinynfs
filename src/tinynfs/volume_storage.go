@@ -117,8 +117,12 @@ func (self *VolumeStorage) mkWriteVolume() (*VolumeFile, error) {
 	return v, err
 }
 
-func (self *VolumeStorage) GetDiskStat() (*DiskStat, error) {
-	return GetPathDiskStat(self.root)
+func (self *VolumeStorage) IsFully() (bool, error) {
+	dstat, err := GetPathDiskStat(self.root)
+	if err != nil {
+		return true, err
+	}
+	return dstat.Free < uint64(self.remain), nil
 }
 
 func (self *VolumeStorage) ReadFile(id int64, offset int64, size int) ([]byte, error) {
@@ -142,10 +146,10 @@ func (self *VolumeStorage) WriteFile(data []byte) (int64, int64, error) {
 		return 0, 0, err
 	}
 
-	dstat, err := GetPathDiskStat(self.root)
+	fully, err := self.IsFully()
 	if err != nil {
 		return 0, 0, err
-	} else if dstat.Free < uint64(self.remain) {
+	} else if fully {
 		return 0, 0, ErrVolumeStorageFully
 	}
 
