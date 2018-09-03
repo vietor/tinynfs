@@ -36,7 +36,10 @@ func (self *VolumeStorage) init() error {
 	if time.Now().UnixNano() < VolumeValidateTimestamp {
 		return ErrTimestamp
 	}
-	if err := self.volumePlock.Lock(); err != nil {
+	if ok, err := self.volumePlock.Lock(); err != nil || !ok {
+		if err == nil {
+			err = ErrVolumeUsed
+		}
 		return err
 	}
 	files, err := ioutil.ReadDir(self.root)

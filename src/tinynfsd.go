@@ -74,7 +74,10 @@ func main() {
 	}
 
 	plocker := tinynfs.NewProcessLock(filepath.Join(dpath, "tinynfsd.lock"))
-	if err := plocker.Lock(); err != nil {
+	if ok, err := plocker.Lock(); err != nil || !ok {
+		if err == nil {
+			err = fmt.Errorf("process already running")
+		}
 		log.Fatalln(err)
 	}
 	defer plocker.Unlock()
