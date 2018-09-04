@@ -16,7 +16,7 @@ func TestFileSystem(t *testing.T) {
 		DiskRemain:      4 * 1024 * 1024,
 		SnapshotInteval: 600,
 		SnapshotReserve: 3,
-		VolumeMaxSize:   4 * 1024 * 1024 * 1024,
+		VolumeSliceSize: 4 * 1024 * 1024 * 1024,
 		VolumeFileGroups: []VolumeGroup{
 			VolumeGroup{
 				Id:   1,

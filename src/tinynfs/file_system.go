@@ -54,7 +54,7 @@ func (self *FileSystem) init() error {
 	}
 	for _, v := range self.config.VolumeFileGroups {
 		volumepath := strings.Replace(v.Path, "{{DATA}}", self.root, 1)
-		vs, err := NewVolumeStorage(volumepath, self.config.VolumeMaxSize, self.config.DiskRemain)
+		vs, err := NewVolumeStorage(volumepath, self.config.VolumeSliceSize, self.config.DiskRemain)
 		if err != nil {
 			db.Close()
 			for _, v := range self.volumeStorages {

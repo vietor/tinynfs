@@ -27,7 +27,7 @@ type Storage struct {
 	DiskRemain       int64
 	SnapshotInteval  int64
 	SnapshotReserve  int
-	VolumeMaxSize    int64
+	VolumeSliceSize  int64
 	VolumeFileGroups []VolumeGroup
 }
 
@@ -52,7 +52,7 @@ func (self *Config) Dump() string {
 	lines = append(lines, fmt.Sprintf("storage.disk.remain=%d #Bytes", self.Storage.DiskRemain))
 	lines = append(lines, fmt.Sprintf("storage.snapshot.interval=%d #Seconds", self.Storage.SnapshotInteval))
 	lines = append(lines, fmt.Sprintf("storage.snapshot.reserve=%d", self.Storage.SnapshotReserve))
-	lines = append(lines, fmt.Sprintf("storage.volume.maxsize=%d #Bytes", self.Storage.VolumeMaxSize))
+	lines = append(lines, fmt.Sprintf("storage.volume.slicesize=%d #Bytes", self.Storage.VolumeSliceSize))
 	for _, v := range self.Storage.VolumeFileGroups {
 		lines = append(lines, fmt.Sprintf("storage.volume.filegroups=%d:%s", v.Id, v.Path))
 	}
@@ -111,7 +111,7 @@ func NewConfig(filepath string) (*Config, error) {
 			DiskRemain:      50 * 1024 * 1024,
 			SnapshotInteval: 1800,
 			SnapshotReserve: 2,
-			VolumeMaxSize:   5 * 1024 * 1024 * 1024,
+			VolumeSliceSize: 5 * 1024 * 1024 * 1024,
 			VolumeFileGroups: []VolumeGroup{
 				VolumeGroup{
 					Id:   0,
@@ -189,13 +189,6 @@ func NewConfig(filepath string) (*Config, error) {
 			} else {
 				config.Storage.DiskRemain = int64(size)
 			}
-		case "storage.volume.maxsize":
-			size, err := parseBytes(value)
-			if err != nil {
-				return nil, fmt.Errorf("line %d: %s", no, err)
-			} else {
-				config.Storage.VolumeMaxSize = int64(size)
-			}
 		case "storage.snapshot.interval":
 			count, err := strconv.ParseUint(value, 10, 32)
 			if err != nil {
@@ -209,6 +202,13 @@ func NewConfig(filepath string) (*Config, error) {
 				return nil, fmt.Errorf("line %d: %s", no, err)
 			} else {
 				config.Storage.SnapshotReserve = int(count)
+			}
+		case "storage.volume.slicesize":
+			size, err := parseBytes(value)
+			if err != nil {
+				return nil, fmt.Errorf("line %d: %s", no, err)
+			} else {
+				config.Storage.VolumeSliceSize = int64(size)
 			}
 		case "storage.volume.filegroups":
 			if m, _ := regexp.MatchString("^[0-9]{1,2}:\\/.*\\/+$", value); !m {
