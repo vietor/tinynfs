@@ -18,11 +18,17 @@ type Network struct {
 	ImageThumbnailSizes map[string]bool
 }
 
+type VolumeGroup struct {
+	Id   int
+	Path string
+}
+
 type Storage struct {
-	DiskRemain      int64
-	VolumeMaxSize   int64
-	SnapshotInteval int64
-	SnapshotReserve int
+	DiskRemain       int64
+	SnapshotInteval  int64
+	SnapshotReserve  int
+	VolumeMaxSize    int64
+	VolumeFileGroups []VolumeGroup
 }
 
 type Config struct {
@@ -44,9 +50,12 @@ func (self *Config) Dump() string {
 	}
 	lines = append(lines, "network.image.thumbnail.sizes="+strings.Join(sizes, ","))
 	lines = append(lines, fmt.Sprintf("storage.disk.remain=%d #Bytes", self.Storage.DiskRemain))
-	lines = append(lines, fmt.Sprintf("storage.volume.maxsize=%d #Bytes", self.Storage.VolumeMaxSize))
 	lines = append(lines, fmt.Sprintf("storage.snapshot.interval=%d #Seconds", self.Storage.SnapshotInteval))
 	lines = append(lines, fmt.Sprintf("storage.snapshot.reserve=%d", self.Storage.SnapshotReserve))
+	lines = append(lines, fmt.Sprintf("storage.volume.maxsize=%d #Bytes", self.Storage.VolumeMaxSize))
+	for _, v := range self.Storage.VolumeFileGroups {
+		lines = append(lines, fmt.Sprintf("storage.volume.filegroups=%d:%s", v.Id, v.Path))
+	}
 	return strings.Join(lines, "\n")
 }
 
@@ -100,9 +109,15 @@ func NewConfig(filepath string) (*Config, error) {
 		},
 		Storage: &Storage{
 			DiskRemain:      50 * 1024 * 1024,
-			VolumeMaxSize:   5 * 1024 * 1024 * 1024,
 			SnapshotInteval: 1800,
 			SnapshotReserve: 2,
+			VolumeMaxSize:   5 * 1024 * 1024 * 1024,
+			VolumeFileGroups: []VolumeGroup{
+				VolumeGroup{
+					Id:   0,
+					Path: "{{DATA}}/volumes/",
+				},
+			},
 		},
 	}
 
@@ -113,6 +128,7 @@ func NewConfig(filepath string) (*Config, error) {
 	defer file.Close()
 
 	no := 0
+	vfgs := []VolumeGroup{}
 	scanner := bufio.NewScanner(file)
 	for scanner.Scan() {
 		no = no + 1
@@ -194,12 +210,26 @@ func NewConfig(filepath string) (*Config, error) {
 			} else {
 				config.Storage.SnapshotReserve = int(count)
 			}
+		case "storage.volume.filegroups":
+			if m, _ := regexp.MatchString("^[0-9]{1,2}:\\/.*\\/+$", value); !m {
+				return nil, fmt.Errorf("line %d: %s", no, err)
+			} else {
+				fields := strings.Split(value, ":")
+				id, _ := strconv.ParseUint(fields[0], 10, 32)
+				vfgs = append(vfgs, VolumeGroup{
+					Id:   int(id),
+					Path: fields[1],
+				})
+			}
 		default:
 			fmt.Printf("ignore line: %d: %s\n", no, line)
 		}
 	}
 	if err := scanner.Err(); err != nil {
 		fmt.Println("ignore error:", err)
+	}
+	if len(vfgs) > 0 {
+		config.Storage.VolumeFileGroups = vfgs
 	}
 
 	return config, nil

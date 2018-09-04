@@ -14,9 +14,19 @@ func TestFileSystem(t *testing.T) {
 	filename := "/a/a"
 	fs, err := NewFileSystem(filepath.Join("../../test", "data-fs"), &Storage{
 		DiskRemain:      4 * 1024 * 1024,
-		VolumeMaxSize:   4 * 1024 * 1024 * 1024,
 		SnapshotInteval: 600,
 		SnapshotReserve: 3,
+		VolumeMaxSize:   4 * 1024 * 1024 * 1024,
+		VolumeFileGroups: []VolumeGroup{
+			VolumeGroup{
+				Id:   0,
+				Path: "{{DATA}}/volumes/",
+			},
+			VolumeGroup{
+				Id:   1,
+				Path: "{{DATA}}/volumes1/",
+			},
+		},
 	})
 	if err != nil {
 		t.Error("Create", err)

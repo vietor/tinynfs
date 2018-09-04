@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 	"regexp"
 	"sort"
+	"strings"
 	"time"
 )
 
@@ -16,6 +17,7 @@ type FileNode struct {
 	Size         int    `json:"size"`
 	Mime         string `json:"mime"`
 	Metadata     string `json:"metadata"`
+	GroupId      int    `json:"group_id"`
 	VolumeId     int64  `json:"volume_id"`
 	VolumeOffset int64  `json:"volume_offset"`
 }
@@ -24,9 +26,9 @@ type FileSystem struct {
 	root           string
 	config         *Storage
 	storageDB      *bolt.DB
-	volumeStroage  *VolumeStorage
 	timeOnUpdate   int64
 	timeOnSnapshot int64
+	volumeStroages map[int]*VolumeStorage
 }
 
 type WriteOptions struct {
@@ -49,13 +51,19 @@ func (self *FileSystem) init() error {
 		}
 		return err
 	}
-	vs, err := NewVolumeStorage(filepath.Join(self.root, "volumes"), self.config.VolumeMaxSize, self.config.DiskRemain)
-	if err != nil {
-		db.Close()
-		return err
+	for _, v := range self.config.VolumeFileGroups {
+		volumepath := strings.Replace(v.Path, "{{DATA}}", self.root, 1)
+		vs, err := NewVolumeStorage(volumepath, self.config.VolumeMaxSize, self.config.DiskRemain)
+		if err != nil {
+			db.Close()
+			for _, v := range self.volumeStroages {
+				v.Close()
+			}
+			return err
+		}
+		self.volumeStroages[v.Id] = vs
 	}
 	self.storageDB = db
-	self.volumeStroage = vs
 	self.storageDB.Update(func(tx *bolt.Tx) error {
 		_, err := tx.CreateBucketIfNotExists(fileBucket)
 		if err != nil {
@@ -77,12 +85,12 @@ func (self *FileSystem) Close() {
 	if self.storageDB != nil {
 		self.storageDB.Close()
 	}
-	if self.volumeStroage != nil {
-		self.volumeStroage.Close()
+	for _, v := range self.volumeStroages {
+		v.Close()
 	}
 }
 
-func (self *FileSystem) getFileNode(bucket []byte, key []byte) (*FileNode, error) {
+func (self *FileSystem) readNode(bucket []byte, key []byte) (*FileNode, error) {
 	var node *FileNode
 	err := self.storageDB.View(func(tx *bolt.Tx) error {
 		bt := tx.Bucket(bucket)
@@ -98,7 +106,7 @@ func (self *FileSystem) getFileNode(bucket []byte, key []byte) (*FileNode, error
 	return node, err
 }
 
-func (self *FileSystem) putFileNode(bucket []byte, key []byte, node *FileNode) error {
+func (self *FileSystem) writeNode(bucket []byte, key []byte, node *FileNode) error {
 	return self.storageDB.Update(func(tx *bolt.Tx) error {
 		bt := tx.Bucket(bucket)
 		b, err := json.Marshal(node)
@@ -110,11 +118,15 @@ func (self *FileSystem) putFileNode(bucket []byte, key []byte, node *FileNode) e
 }
 
 func (self *FileSystem) ReadFile(filepath string) (string, string, []byte, error) {
-	node, _ := self.getFileNode(fileBucket, []byte(filepath))
+	node, _ := self.readNode(fileBucket, []byte(filepath))
 	if node == nil {
 		return "", "", nil, os.ErrNotExist
 	}
-	data, err := self.volumeStroage.ReadFile(node.VolumeId, node.VolumeOffset, node.Size)
+	volumeStroage := self.volumeStroages[node.GroupId]
+	if volumeStroage == nil {
+		return "", "", nil, os.ErrNotExist
+	}
+	data, err := volumeStroage.ReadFile(node.VolumeId, node.VolumeOffset, node.Size)
 	if err != nil {
 		return "", "", nil, os.ErrNotExist
 	}
@@ -137,29 +149,44 @@ func (self *FileSystem) WriteFileEx(filepath string, filemime string, metadata s
 		return ErrFileSystemFully
 	}
 
-	oldnode, _ := self.getFileNode(fileBucket, []byte(filepath))
+	oldnode, _ := self.readNode(fileBucket, []byte(filepath))
 	if oldnode != nil && !options.Overwrite {
 		return os.ErrExist
 	}
 
-	volumeId, volumeOffset, err := self.volumeStroage.WriteFile(data)
+	var (
+		groupId       int
+		volumeStroage *VolumeStorage
+	)
+	for k, v := range self.volumeStroages {
+		if f, _ := v.IsFully(); !f {
+			groupId = k
+			volumeStroage = v
+			break
+		}
+	}
+	if volumeStroage == nil {
+		return ErrFileSystemFully
+	}
+
+	volumeId, volumeOffset, err := volumeStroage.WriteFile(data)
 	if err != nil {
 		return err
 	}
-	node := &FileNode{len(data), filemime, metadata, volumeId, volumeOffset}
+	node := &FileNode{len(data), filemime, metadata, groupId, volumeId, volumeOffset}
 
-	err = self.putFileNode(fileBucket, []byte(filepath), node)
+	err = self.writeNode(fileBucket, []byte(filepath), node)
 	if err == nil {
 		self.timeOnUpdate = time.Now().UnixNano()
 		if oldnode != nil {
-			self.putFileNode(deleteFileBucket, []byte(fmt.Sprintf("%s\r\n%d", filepath, time.Now().UnixNano())), oldnode)
+			self.writeNode(deleteFileBucket, []byte(fmt.Sprintf("%s\r\n%d", filepath, time.Now().UnixNano())), oldnode)
 		}
 	}
 	return err
 }
 
 func (self *FileSystem) DeleteFile(filepath string) error {
-	node, _ := self.getFileNode(fileBucket, []byte(filepath))
+	node, _ := self.readNode(fileBucket, []byte(filepath))
 	if node == nil {
 		return os.ErrNotExist
 	}
@@ -170,7 +197,7 @@ func (self *FileSystem) DeleteFile(filepath string) error {
 	})
 	if err == nil {
 		self.timeOnUpdate = time.Now().UnixNano()
-		self.putFileNode(deleteFileBucket, []byte(fmt.Sprintf("%s\r\n%d", filepath, time.Now().UnixNano())), node)
+		self.writeNode(deleteFileBucket, []byte(fmt.Sprintf("%s\r\n%d", filepath, time.Now().UnixNano())), node)
 	}
 	return err
 }
@@ -222,8 +249,9 @@ func NewFileSystem(root string, config *Storage) (*FileSystem, error) {
 	}
 
 	fs := &FileSystem{
-		root:   root,
-		config: config,
+		root:           root,
+		config:         config,
+		volumeStroages: map[int]*VolumeStorage{},
 	}
 	if err := fs.init(); err != nil {
 		return nil, err

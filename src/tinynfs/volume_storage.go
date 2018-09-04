@@ -25,8 +25,8 @@ type VolumeFile struct {
 
 type VolumeStorage struct {
 	root        string
-	limit       int64
-	remain      int64
+	sliceSize   int64
+	diskRemain  int64
 	volumes     map[int64]*VolumeFile
 	volumeMap   map[int64]*VolumeFile
 	volumeLock  sync.Mutex
@@ -58,7 +58,7 @@ func (self *VolumeStorage) init() error {
 				if err != nil {
 					log.Println(fmt.Sprintf("load failed %s %s", name, err))
 				} else {
-					if v.size < self.limit {
+					if v.size < self.sliceSize {
 						self.volumes[v.id] = v
 					}
 					self.volumeMap[v.id] = v
@@ -105,7 +105,7 @@ func (self *VolumeStorage) requireVolume() (*VolumeFile, error) {
 	defer self.volumeLock.Unlock()
 
 	for _, v := range self.volumes {
-		if v.size < self.limit {
+		if v.size < self.sliceSize {
 			return v, nil
 		}
 	}
@@ -122,7 +122,7 @@ func (self *VolumeStorage) IsFully() (bool, error) {
 	if err != nil {
 		return true, err
 	}
-	return dstat.Free < uint64(self.remain), nil
+	return dstat.Free < uint64(self.diskRemain), nil
 }
 
 func (self *VolumeStorage) ReadFile(id int64, offset int64, size int) ([]byte, error) {
@@ -163,7 +163,7 @@ func (self *VolumeStorage) WriteFile(data []byte) (int64, int64, error) {
 	}
 	v.wFile.Sync()
 	v.size += int64(n)
-	if v.size >= self.limit {
+	if v.size >= self.sliceSize {
 		self.volumeLock.Lock()
 		delete(self.volumes, v.id)
 		self.volumeLock.Unlock()
@@ -178,8 +178,8 @@ func NewVolumeStorage(root string, limit int64, remain int64) (*VolumeStorage, e
 
 	storage := &VolumeStorage{
 		root:        root,
-		limit:       limit,
-		remain:      remain,
+		sliceSize:   limit,
+		diskRemain:  remain,
 		volumes:     map[int64]*VolumeFile{},
 		volumeMap:   map[int64]*VolumeFile{},
 		volumePlock: NewProcessLock(root + "/volume.lock"),
