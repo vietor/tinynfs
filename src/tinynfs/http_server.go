@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"net"
 	"net/http"
-	"os"
 )
 
 type HttpServer struct {
@@ -28,9 +27,9 @@ func (self *HttpServer) Close() {
 func (self *HttpServer) getHttpStatusCode(err error) int {
 	if err == ErrParam || err == ErrThumbnailSize {
 		return http.StatusBadRequest
-	} else if err == os.ErrPermission || err == os.ErrExist {
+	} else if err == ErrPermission || err == ErrExist {
 		return http.StatusForbidden
-	} else if err == os.ErrNotExist {
+	} else if err == ErrNotExist {
 		return http.StatusNotFound
 	} else if err == ErrMediaType {
 		return http.StatusUnsupportedMediaType

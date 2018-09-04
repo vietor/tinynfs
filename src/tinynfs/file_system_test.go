@@ -19,12 +19,12 @@ func TestFileSystem(t *testing.T) {
 		VolumeMaxSize:   4 * 1024 * 1024 * 1024,
 		VolumeFileGroups: []VolumeGroup{
 			VolumeGroup{
-				Id:   0,
-				Path: "{{DATA}}/volumes/",
-			},
-			VolumeGroup{
 				Id:   1,
 				Path: "{{DATA}}/volumes1/",
+			},
+			VolumeGroup{
+				Id:   0,
+				Path: "{{DATA}}/volumes/",
 			},
 		},
 	})

@@ -31,6 +31,7 @@ type VolumeStorage struct {
 	volumeMap   map[int64]*VolumeFile
 	volumeLock  sync.Mutex
 	volumePlock *ProcessLock
+	volumeFully bool
 }
 
 func (self *VolumeStorage) init() error {
@@ -118,11 +119,18 @@ func (self *VolumeStorage) requireVolume() (*VolumeFile, error) {
 }
 
 func (self *VolumeStorage) IsFully() (bool, error) {
+	if self.volumeFully {
+		return true, nil
+	}
 	dstat, err := GetPathDiskStat(self.root)
 	if err != nil {
 		return true, err
 	}
-	return dstat.Free < uint64(self.diskRemain), nil
+	fully := dstat.Free < uint64(self.diskRemain)
+	if fully {
+		self.volumeFully = fully
+	}
+	return fully, nil
 }
 
 func (self *VolumeStorage) ReadFile(id int64, offset int64, size int) ([]byte, error) {
@@ -130,7 +138,7 @@ func (self *VolumeStorage) ReadFile(id int64, offset int64, size int) ([]byte, e
 	v := self.volumeMap[id]
 	self.volumeLock.Unlock()
 	if v == nil {
-		return nil, os.ErrNotExist
+		return nil, ErrNotExist
 	}
 
 	data := make([]byte, size)

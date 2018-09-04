@@ -1,8 +1,15 @@
 package tinynfs
 
-import "errors"
+import (
+	"errors"
+	"os"
+)
 
 var (
+	ErrExist      = os.ErrExist
+	ErrNotExist   = os.ErrNotExist
+	ErrPermission = os.ErrPermission
+
 	ErrParam         = errors.New("bad parameters")
 	ErrTimestamp     = errors.New("unacceptable timestamp")
 	ErrMediaType     = errors.New("unsupported media type")

@@ -28,7 +28,8 @@ type FileSystem struct {
 	storageDB      *bolt.DB
 	timeOnUpdate   int64
 	timeOnSnapshot int64
-	volumeStroages map[int]*VolumeStorage
+	volumeGroupIds []int
+	volumeStorages map[int]*VolumeStorage
 }
 
 type WriteOptions struct {
@@ -56,12 +57,13 @@ func (self *FileSystem) init() error {
 		vs, err := NewVolumeStorage(volumepath, self.config.VolumeMaxSize, self.config.DiskRemain)
 		if err != nil {
 			db.Close()
-			for _, v := range self.volumeStroages {
+			for _, v := range self.volumeStorages {
 				v.Close()
 			}
 			return err
 		}
-		self.volumeStroages[v.Id] = vs
+		self.volumeStorages[v.Id] = vs
+		self.volumeGroupIds = append(self.volumeGroupIds, v.Id)
 	}
 	self.storageDB = db
 	self.storageDB.Update(func(tx *bolt.Tx) error {
@@ -85,7 +87,7 @@ func (self *FileSystem) Close() {
 	if self.storageDB != nil {
 		self.storageDB.Close()
 	}
-	for _, v := range self.volumeStroages {
+	for _, v := range self.volumeStorages {
 		v.Close()
 	}
 }
@@ -120,15 +122,15 @@ func (self *FileSystem) writeNode(bucket []byte, key []byte, node *FileNode) err
 func (self *FileSystem) ReadFile(filepath string) (string, string, []byte, error) {
 	node, _ := self.readNode(fileBucket, []byte(filepath))
 	if node == nil {
-		return "", "", nil, os.ErrNotExist
+		return "", "", nil, ErrNotExist
 	}
-	volumeStroage := self.volumeStroages[node.GroupId]
-	if volumeStroage == nil {
-		return "", "", nil, os.ErrNotExist
+	volumeStorage := self.volumeStorages[node.GroupId]
+	if volumeStorage == nil {
+		return "", "", nil, ErrNotExist
 	}
-	data, err := volumeStroage.ReadFile(node.VolumeId, node.VolumeOffset, node.Size)
+	data, err := volumeStorage.ReadFile(node.VolumeId, node.VolumeOffset, node.Size)
 	if err != nil {
-		return "", "", nil, os.ErrNotExist
+		return "", "", nil, ErrNotExist
 	}
 	return node.Mime, node.Metadata, data, nil
 }
@@ -151,25 +153,26 @@ func (self *FileSystem) WriteFileEx(filepath string, filemime string, metadata s
 
 	oldnode, _ := self.readNode(fileBucket, []byte(filepath))
 	if oldnode != nil && !options.Overwrite {
-		return os.ErrExist
+		return ErrExist
 	}
 
 	var (
 		groupId       int
-		volumeStroage *VolumeStorage
+		volumeStorage *VolumeStorage
 	)
-	for k, v := range self.volumeStroages {
-		if f, _ := v.IsFully(); !f {
-			groupId = k
-			volumeStroage = v
+	for _, id := range self.volumeGroupIds {
+		storage := self.volumeStorages[id]
+		if f, _ := storage.IsFully(); !f {
+			groupId = id
+			volumeStorage = storage
 			break
 		}
 	}
-	if volumeStroage == nil {
+	if volumeStorage == nil {
 		return ErrFileSystemFully
 	}
 
-	volumeId, volumeOffset, err := volumeStroage.WriteFile(data)
+	volumeId, volumeOffset, err := volumeStorage.WriteFile(data)
 	if err != nil {
 		return err
 	}
@@ -188,7 +191,7 @@ func (self *FileSystem) WriteFileEx(filepath string, filemime string, metadata s
 func (self *FileSystem) DeleteFile(filepath string) error {
 	node, _ := self.readNode(fileBucket, []byte(filepath))
 	if node == nil {
-		return os.ErrNotExist
+		return ErrNotExist
 	}
 
 	err := self.storageDB.Update(func(tx *bolt.Tx) error {
@@ -251,7 +254,8 @@ func NewFileSystem(root string, config *Storage) (*FileSystem, error) {
 	fs := &FileSystem{
 		root:           root,
 		config:         config,
-		volumeStroages: map[int]*VolumeStorage{},
+		volumeGroupIds: []int{},
+		volumeStorages: map[int]*VolumeStorage{},
 	}
 	if err := fs.init(); err != nil {
 		return nil, err

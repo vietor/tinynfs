@@ -12,7 +12,6 @@ import (
 	"io/ioutil"
 	"math"
 	"net/http"
-	"os"
 	"regexp"
 	"strconv"
 	"strings"
@@ -165,7 +164,7 @@ func (self *HttpServer) handleImageGet(res http.ResponseWriter, req *http.Reques
 		xmime = filemime
 		xdata = filedata
 		return
-	} else if err != os.ErrNotExist || len(originpath) < 1 {
+	} else if err != ErrNotExist || len(originpath) < 1 {
 		xerr = err
 		return
 	}
@@ -200,7 +199,7 @@ func (self *HttpServer) handleImageGet(res http.ResponseWriter, req *http.Reques
 		Overwrite: false,
 	}
 	err = self.storage.WriteFileEx(filepath, imagemime, metadata, imagedata, woptions)
-	if err != nil && err != os.ErrExist {
+	if err != nil && err != ErrExist {
 		xerr = err
 		return
 	}
@@ -208,7 +207,7 @@ func (self *HttpServer) handleImageGet(res http.ResponseWriter, req *http.Reques
 	xdata = imagedata
 }
 
-func (self *HttpServer) storeImageToFile(filepath string, dataimage io.Reader, options *WriteOptions) (map[string]interface{}, error) {
+func (self *HttpServer) writeImageToImage(filepath string, dataimage io.Reader, options *WriteOptions) (map[string]interface{}, error) {
 	imagedata, err := ioutil.ReadAll(dataimage)
 	if err != nil {
 		return nil, err
@@ -252,7 +251,7 @@ func (self *HttpServer) handleImageUpload(res http.ResponseWriter, req *http.Req
 		xerr = ErrParam
 		return
 	}
-	imageout, err := self.storeImageToFile("", dataimage, &WriteOptions{
+	imageout, err := self.writeImageToImage("", dataimage, &WriteOptions{
 		Overwrite: req.Method == "PUT",
 	})
 	if err != nil {
@@ -292,7 +291,7 @@ func (self *HttpServer) handleImageUploadMore(res http.ResponseWriter, req *http
 			}
 			continue
 		}
-		imageout, err := self.storeImageToFile("", dataimage, woptions)
+		imageout, err := self.writeImageToImage("", dataimage, woptions)
 		if err != nil {
 			xdata[key] = map[string]string{
 				"error": err.Error(),
@@ -325,7 +324,7 @@ func (self *HttpServer) handleImageUploadFile(res http.ResponseWriter, req *http
 		xerr = ErrParam
 		return
 	}
-	imageout, err := self.storeImageToFile(filepath, dataimage, &WriteOptions{
+	imageout, err := self.writeImageToImage(filepath, dataimage, &WriteOptions{
 		Overwrite: req.Method == "PUT",
 	})
 	if err != nil {
