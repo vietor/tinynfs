@@ -252,9 +252,12 @@ func NewFileSystem(root string, config *Storage) (*FileSystem, error) {
 		return nil, err
 	}
 
+	uptime := time.Now().Unix()
 	fs := &FileSystem{
 		root:           root,
 		config:         config,
+		timeOnUpdate:   uptime,
+		timeOnSnapshot: uptime,
 		volumeGroupIds: []int{},
 		volumeStorages: map[int]*VolumeStorage{},
 	}
