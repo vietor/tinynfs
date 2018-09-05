@@ -59,7 +59,7 @@ func (self *HttpServer) httpSendJsonData(res http.ResponseWriter, req *http.Requ
 		result["data"] = data
 	} else {
 		result["code"] = 1
-		result["message"] = (*err).Error()
+		result["error"] = (*err).Error()
 		res.WriteHeader(self.getHttpStatusCode(*err))
 	}
 	json.NewEncoder(res).Encode(result)
