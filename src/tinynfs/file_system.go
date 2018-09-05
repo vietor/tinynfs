@@ -207,10 +207,10 @@ func (self *FileSystem) DeleteFile(filepath string) error {
 
 func (self *FileSystem) Snapshot(force bool) (string, error) {
 	if !force {
-		if self.timeOnSnapshot == self.timeOnUpdate {
+		if self.timeOnSnapshot >= self.timeOnUpdate {
 			return "", nil
 		}
-		if self.timeOnSnapshot+self.config.SnapshotInteval > time.Now().UnixNano() {
+		if self.timeOnSnapshot+self.config.SnapshotInterval > time.Now().UnixNano() {
 			return "", nil
 		}
 	}
@@ -222,12 +222,13 @@ func (self *FileSystem) Snapshot(force bool) (string, error) {
 	if err != nil {
 		return "", err
 	}
+	uptime := self.timeOnUpdate
 	ssfile := fmt.Sprintf("snapshots/storage.db.%d", time.Now().UnixNano())
 	err = self.storageDB.View(func(tx *bolt.Tx) error {
 		return tx.CopyFile(filepath.Join(self.root, ssfile), 0644)
 	})
 	if err == nil {
-		self.timeOnSnapshot = time.Now().UnixNano()
+		self.timeOnSnapshot = uptime
 		names := []string{}
 		for _, file := range files {
 			name := file.Name()

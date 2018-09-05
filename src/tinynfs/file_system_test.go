@@ -13,10 +13,10 @@ func TestFileSystem(t *testing.T) {
 
 	filename := "/a/a"
 	fs, err := NewFileSystem(filepath.Join("../../test", "data-fs"), &Storage{
-		DiskRemain:      4 * 1024 * 1024,
-		SnapshotInteval: 600,
-		SnapshotReserve: 3,
-		VolumeSliceSize: 4 * 1024 * 1024 * 1024,
+		DiskRemain:       4 * 1024 * 1024,
+		SnapshotInterval: 600,
+		SnapshotReserve:  3,
+		VolumeSliceSize:  4 * 1024 * 1024 * 1024,
 		VolumeFileGroups: []VolumeGroup{
 			VolumeGroup{
 				Id:   1,

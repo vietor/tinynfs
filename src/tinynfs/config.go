@@ -25,7 +25,7 @@ type VolumeGroup struct {
 
 type Storage struct {
 	DiskRemain       int64
-	SnapshotInteval  int64
+	SnapshotInterval int64
 	SnapshotReserve  int
 	VolumeSliceSize  int64
 	VolumeFileGroups []VolumeGroup
@@ -50,7 +50,7 @@ func (self *Config) Dump() string {
 	}
 	lines = append(lines, "network.image.thumbnail.sizes="+strings.Join(sizes, ","))
 	lines = append(lines, fmt.Sprintf("storage.disk.remain=%d #Bytes", self.Storage.DiskRemain))
-	lines = append(lines, fmt.Sprintf("storage.snapshot.interval=%d #Seconds", self.Storage.SnapshotInteval))
+	lines = append(lines, fmt.Sprintf("storage.snapshot.interval=%d #Seconds", self.Storage.SnapshotInterval))
 	lines = append(lines, fmt.Sprintf("storage.snapshot.reserve=%d", self.Storage.SnapshotReserve))
 	lines = append(lines, fmt.Sprintf("storage.volume.slicesize=%d #Bytes", self.Storage.VolumeSliceSize))
 	for _, v := range self.Storage.VolumeFileGroups {
@@ -108,10 +108,10 @@ func NewConfig(filepath string) (*Config, error) {
 			},
 		},
 		Storage: &Storage{
-			DiskRemain:      50 * 1024 * 1024,
-			SnapshotInteval: 1800,
-			SnapshotReserve: 2,
-			VolumeSliceSize: 5 * 1024 * 1024 * 1024,
+			DiskRemain:       50 * 1024 * 1024,
+			SnapshotInterval: 1800,
+			SnapshotReserve:  2,
+			VolumeSliceSize:  5 * 1024 * 1024 * 1024,
 			VolumeFileGroups: []VolumeGroup{
 				VolumeGroup{
 					Id:   0,
@@ -194,7 +194,7 @@ func NewConfig(filepath string) (*Config, error) {
 			if err != nil {
 				return nil, fmt.Errorf("line %d: %s", no, err)
 			} else {
-				config.Storage.SnapshotInteval = int64(count)
+				config.Storage.SnapshotInterval = int64(count)
 			}
 		case "storage.snapshot.reserve":
 			count, err := strconv.ParseUint(value, 10, 32)
