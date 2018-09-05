@@ -123,7 +123,7 @@ func (self *HttpServer) handleImageGet(res http.ResponseWriter, req *http.Reques
 		xmime string
 		xdata []byte
 	)
-	defer self.httpSendByteData(res, req, &xerr, &xmime, &xdata)
+	defer self.sendByteData(res, req, &xerr, &xmime, &xdata)
 
 	filepath := req.URL.Path
 	if strings.HasSuffix(filepath, "/") {
@@ -244,7 +244,12 @@ func (self *HttpServer) handleImageUpload(res http.ResponseWriter, req *http.Req
 		xerr  error
 		xdata = map[string]interface{}{}
 	)
-	defer self.httpSendJsonData(res, req, &xerr, xdata)
+	defer self.sendJsonData(res, req, &xerr, xdata)
+
+	if err := self.parseRequestBody(req); err != nil {
+		xerr = err
+		return
+	}
 
 	dataimage, _, err := req.FormFile("imagedata")
 	if err != nil {
@@ -273,9 +278,9 @@ func (self *HttpServer) handleImageUploadMore(res http.ResponseWriter, req *http
 		xerr  error
 		xdata = map[string]interface{}{}
 	)
-	defer self.httpSendJsonData(res, req, &xerr, xdata)
+	defer self.sendJsonData(res, req, &xerr, xdata)
 
-	if err := req.ParseMultipartForm(32 * 1024 * 1024); err != nil {
+	if err := self.parseRequestBody(req); err != nil {
 		xerr = err
 		return
 	}
@@ -312,7 +317,12 @@ func (self *HttpServer) handleImageUploadFile(res http.ResponseWriter, req *http
 		xerr  error
 		xdata = map[string]interface{}{}
 	)
-	defer self.httpSendJsonData(res, req, &xerr, xdata)
+	defer self.sendJsonData(res, req, &xerr, xdata)
+
+	if err := self.parseRequestBody(req); err != nil {
+		xerr = err
+		return
+	}
 
 	filepath := req.FormValue("filepath")
 	if !strings.HasPrefix(filepath, "/") || strings.HasSuffix(filepath, "/") {

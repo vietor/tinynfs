@@ -35,7 +35,7 @@ func (self *HttpServer) handleFileGet(res http.ResponseWriter, req *http.Request
 		xmime string
 		xdata []byte
 	)
-	defer self.httpSendByteData(res, req, &xerr, &xmime, &xdata)
+	defer self.sendByteData(res, req, &xerr, &xmime, &xdata)
 
 	filepath := req.FormValue("filepath")
 	if !strings.HasPrefix(filepath, "/") || strings.HasSuffix(filepath, "/") {
@@ -62,7 +62,12 @@ func (self *HttpServer) handleFileUpload(res http.ResponseWriter, req *http.Requ
 		xerr  error
 		xdata = map[string]interface{}{}
 	)
-	defer self.httpSendJsonData(res, req, &xerr, xdata)
+	defer self.sendJsonData(res, req, &xerr, xdata)
+
+	if err := self.parseRequestBody(req); err != nil {
+		xerr = err
+		return
+	}
 
 	filepath := req.FormValue("filepath")
 	if !strings.HasPrefix(filepath, "/") || strings.HasSuffix(filepath, "/") {
@@ -101,7 +106,12 @@ func (self *HttpServer) handleFileDelete(res http.ResponseWriter, req *http.Requ
 		xerr  error
 		xdata = map[string]interface{}{}
 	)
-	defer self.httpSendJsonData(res, req, &xerr, xdata)
+	defer self.sendJsonData(res, req, &xerr, xdata)
+
+	if err := self.parseRequestBody(req); err != nil {
+		xerr = err
+		return
+	}
 
 	filepath := req.FormValue("filepath")
 	if !strings.HasPrefix(filepath, "/") || strings.HasSuffix(filepath, "/") {
@@ -127,7 +137,7 @@ func (self *HttpServer) handleAdminSnapshot(res http.ResponseWriter, req *http.R
 		xerr  error
 		xdata = map[string]interface{}{}
 	)
-	defer self.httpSendJsonData(res, req, &xerr, xdata)
+	defer self.sendJsonData(res, req, &xerr, xdata)
 
 	ssfile, err := self.storage.Snapshot(true)
 	if err != nil {

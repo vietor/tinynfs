@@ -24,7 +24,7 @@ func (self *HttpServer) Close() {
 	}
 }
 
-func (self *HttpServer) getHttpStatusCode(err error) int {
+func (self *HttpServer) asHttpStatusCode(err error) int {
 	if err == ErrParam || err == ErrThumbnailSize {
 		return http.StatusBadRequest
 	} else if err == ErrPermission || err == ErrExist {
@@ -37,9 +37,9 @@ func (self *HttpServer) getHttpStatusCode(err error) int {
 	return http.StatusInternalServerError
 }
 
-func (self *HttpServer) httpSendByteData(res http.ResponseWriter, req *http.Request, err *error, mime *string, data *[]byte) {
+func (self *HttpServer) sendByteData(res http.ResponseWriter, req *http.Request, err *error, mime *string, data *[]byte) {
 	if *err != nil {
-		statusCode := self.getHttpStatusCode(*err)
+		statusCode := self.asHttpStatusCode(*err)
 		http.Error(res, (*err).Error(), statusCode)
 	} else {
 		if len(*mime) > 0 {
@@ -51,7 +51,7 @@ func (self *HttpServer) httpSendByteData(res http.ResponseWriter, req *http.Requ
 	}
 }
 
-func (self *HttpServer) httpSendJsonData(res http.ResponseWriter, req *http.Request, err *error, data map[string]interface{}) {
+func (self *HttpServer) sendJsonData(res http.ResponseWriter, req *http.Request, err *error, data map[string]interface{}) {
 	res.Header().Set("Content-Type", "application/json;charset=utf-8")
 	result := map[string]interface{}{}
 	if *err == nil {
@@ -60,9 +60,16 @@ func (self *HttpServer) httpSendJsonData(res http.ResponseWriter, req *http.Requ
 	} else {
 		result["code"] = 1
 		result["error"] = (*err).Error()
-		res.WriteHeader(self.getHttpStatusCode(*err))
+		res.WriteHeader(self.asHttpStatusCode(*err))
 	}
 	json.NewEncoder(res).Encode(result)
+}
+
+func (self *HttpServer) parseRequestBody(req *http.Request) error {
+	if err := req.ParseMultipartForm(32 * 1024 * 1024); err != nil {
+		return err
+	}
+	return nil
 }
 
 func NewHttpServer(storage *FileSystem, config *Network) (*HttpServer, error) {
