@@ -180,7 +180,7 @@ func (self *FileSystem) WriteFileEx(filepath string, filemime string, metadata s
 
 	err = self.writeNode(fileBucket, []byte(filepath), node)
 	if err == nil {
-		self.timeOnUpdate = time.Now().UnixNano()
+		self.timeOnUpdate = time.Now().Unix()
 		if oldnode != nil {
 			self.writeNode(deleteFileBucket, []byte(fmt.Sprintf("%s\r\n%d", filepath, time.Now().UnixNano())), oldnode)
 		}
@@ -199,7 +199,7 @@ func (self *FileSystem) DeleteFile(filepath string) error {
 		return bt.Delete([]byte(filepath))
 	})
 	if err == nil {
-		self.timeOnUpdate = time.Now().UnixNano()
+		self.timeOnUpdate = time.Now().Unix()
 		self.writeNode(deleteFileBucket, []byte(fmt.Sprintf("%s\r\n%d", filepath, time.Now().UnixNano())), node)
 	}
 	return err
@@ -210,7 +210,7 @@ func (self *FileSystem) Snapshot(force bool) (string, error) {
 		if self.timeOnSnapshot >= self.timeOnUpdate {
 			return "", nil
 		}
-		if self.timeOnSnapshot+self.config.SnapshotInterval > time.Now().UnixNano() {
+		if self.timeOnSnapshot+self.config.SnapshotInterval > time.Now().Unix() {
 			return "", nil
 		}
 	}
