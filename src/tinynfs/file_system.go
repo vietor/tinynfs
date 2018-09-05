@@ -135,11 +135,7 @@ func (self *FileSystem) ReadFile(filepath string) (string, string, []byte, error
 	return node.Mime, node.Metadata, data, nil
 }
 
-func (self *FileSystem) WriteFile(filepath string, filemime string, metadata string, data []byte) error {
-	return self.WriteFileEx(filepath, filemime, metadata, data, nil)
-}
-
-func (self *FileSystem) WriteFileEx(filepath string, filemime string, metadata string, data []byte, options *WriteOptions) error {
+func (self *FileSystem) WriteFile(filepath string, filemime string, metadata string, data []byte, options *WriteOptions) error {
 	if options == nil {
 		options = defaultWriteOptions
 	}

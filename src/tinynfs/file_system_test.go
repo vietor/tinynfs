@@ -31,7 +31,7 @@ func TestFileSystem(t *testing.T) {
 	if err != nil {
 		t.Error("Create", err)
 	}
-	err = fs.WriteFile(filename, "", "", fsTestBuffer)
+	err = fs.WriteFile(filename, "", "", fsTestBuffer, nil)
 	if err != nil {
 		t.Error("Write file error", err)
 	} else {

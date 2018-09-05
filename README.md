@@ -41,6 +41,8 @@ curl -X POST \
   -F filedata=@/Users/vietor/jmeter.log
 ```
 
+> Use **PUT** to overwrite exists file.
+
 ##### Response
 
 ``` json

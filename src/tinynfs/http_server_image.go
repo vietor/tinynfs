@@ -89,7 +89,6 @@ func (self *HttpServer) startImage() {
 	serveMux.HandleFunc("/", self.handleImageGet)
 	serveMux.HandleFunc("/upload", self.handleImageUpload)
 	serveMux.HandleFunc("/uploads", self.handleImageUploadMore)
-	serveMux.HandleFunc("/upload/file", self.handleImageUploadFile)
 	err := server.Serve(self.imageListener)
 	if err != nil && !self.closed {
 		fmt.Println(err)
@@ -113,7 +112,7 @@ func (self *HttpServer) parseImageSize(size string) (int, int) {
 }
 
 func (self *HttpServer) handleImageGet(res http.ResponseWriter, req *http.Request) {
-	if req.Method != "GET" {
+	if req.Method != "GET" && req.Method != "HEAD" {
 		http.Error(res, http.StatusText(http.StatusMethodNotAllowed), http.StatusMethodNotAllowed)
 		return
 	}
@@ -195,10 +194,10 @@ func (self *HttpServer) handleImageGet(res http.ResponseWriter, req *http.Reques
 	}
 	filepath = fmt.Sprintf("%s_%dx%d", originpath, askwidth, askheight)
 	metadata = fmt.Sprintf("%dx%d", fixwidth, fixheight)
-	woptions := &WriteOptions{
+	options := &WriteOptions{
 		Overwrite: false,
 	}
-	err = self.storage.WriteFileEx(filepath, imagemime, metadata, imagedata, woptions)
+	err = self.storage.WriteFile(filepath, imagemime, metadata, imagedata, options)
 	if err != nil && err != ErrExist {
 		xerr = err
 		return
@@ -222,7 +221,7 @@ func (self *HttpServer) writeImageToImage(filepath string, dataimage io.Reader, 
 	}
 	imagemime := strings.ToLower("image/" + format)
 	metadata := fmt.Sprintf("%dx%d", config.Width, config.Height)
-	err = self.storage.WriteFileEx(filepath, imagemime, metadata, imagedata, options)
+	err = self.storage.WriteFile(filepath, imagemime, metadata, imagedata, options)
 	if err != nil {
 		return nil, err
 	}
@@ -304,44 +303,5 @@ func (self *HttpServer) handleImageUploadMore(res http.ResponseWriter, req *http
 			continue
 		}
 		xdata[key] = imageout
-	}
-}
-
-func (self *HttpServer) handleImageUploadFile(res http.ResponseWriter, req *http.Request) {
-	if req.Method != "POST" && req.Method != "PUT" {
-		http.Error(res, http.StatusText(http.StatusMethodNotAllowed), http.StatusMethodNotAllowed)
-		return
-	}
-
-	var (
-		xerr  error
-		xdata = map[string]interface{}{}
-	)
-	defer self.sendJsonData(res, req, &xerr, xdata)
-
-	if err := self.parseRequestBody(req); err != nil {
-		xerr = err
-		return
-	}
-
-	filepath := req.FormValue("filepath")
-	if !strings.HasPrefix(filepath, "/") || strings.HasSuffix(filepath, "/") {
-		xerr = ErrParam
-		return
-	}
-	dataimage, _, err := req.FormFile("imagedata")
-	if err != nil {
-		xerr = ErrParam
-		return
-	}
-	imageout, err := self.writeImageToImage(filepath, dataimage, &WriteOptions{
-		Overwrite: req.Method == "PUT",
-	})
-	if err != nil {
-		xerr = err
-		return
-	}
-	for k, v := range imageout {
-		xdata[k] = v
 	}
 }

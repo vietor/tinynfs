@@ -25,7 +25,7 @@ func (self *HttpServer) startFile() {
 }
 
 func (self *HttpServer) handleFileGet(res http.ResponseWriter, req *http.Request) {
-	if req.Method != "GET" {
+	if req.Method != "GET" && req.Method != "HEAD" {
 		http.Error(res, http.StatusText(http.StatusMethodNotAllowed), http.StatusMethodNotAllowed)
 		return
 	}
@@ -53,7 +53,7 @@ func (self *HttpServer) handleFileGet(res http.ResponseWriter, req *http.Request
 }
 
 func (self *HttpServer) handleFileUpload(res http.ResponseWriter, req *http.Request) {
-	if req.Method != "POST" {
+	if req.Method != "POST" && req.Method != "PUT" {
 		http.Error(res, http.StatusText(http.StatusMethodNotAllowed), http.StatusMethodNotAllowed)
 		return
 	}
@@ -86,7 +86,9 @@ func (self *HttpServer) handleFileUpload(res http.ResponseWriter, req *http.Requ
 		return
 	}
 	filemime := dataheader.Header.Get("Content-Type")
-	err = self.storage.WriteFile(filepath, filemime, "", filedata)
+	err = self.storage.WriteFile(filepath, filemime, "", filedata, &WriteOptions{
+		Overwrite: req.Method == "PUT",
+	})
 	if err != nil {
 		xerr = err
 		return
