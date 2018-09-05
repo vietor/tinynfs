@@ -5,9 +5,7 @@ import (
 	"fmt"
 	"log"
 	"os"
-	"os/signal"
 	"path/filepath"
-	"syscall"
 	"time"
 	"tinynfs"
 )
@@ -89,27 +87,9 @@ func main() {
 			storage.Snapshot(false)
 		}
 	}()
-	StartSignal(ticker, server, storage)
-
-}
-
-func StartSignal(ticker *time.Ticker, server *tinynfs.HttpServer, storage *tinynfs.FileSystem) {
-	var (
-		sc chan os.Signal
-		s  os.Signal
-	)
-	sc = make(chan os.Signal, 1)
-	signal.Notify(sc, syscall.SIGHUP, syscall.SIGQUIT, syscall.SIGTERM, syscall.SIGINT, syscall.SIGSTOP)
-	for {
-		s = <-sc
-		switch s {
-		case syscall.SIGQUIT, syscall.SIGTERM, syscall.SIGINT, syscall.SIGSTOP:
-			ticker.Stop()
-			server.Close()
-			storage.Close()
-			return
-		default:
-			return
-		}
-	}
+	tinynfs.WaitProcessExit(func() {
+		ticker.Stop()
+		server.Close()
+		storage.Close()
+	})
 }

@@ -17,6 +17,8 @@ type DiskStat struct {
 	Free uint64
 }
 
+type OnProcessExit func()
+
 var myRand = struct {
 	lock sync.Mutex
 	rand *mrand.Rand
