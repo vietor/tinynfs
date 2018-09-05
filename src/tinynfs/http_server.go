@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"net"
 	"net/http"
+	"strconv"
 )
 
 type HttpServer struct {
@@ -42,11 +43,13 @@ func (self *HttpServer) sendByteData(res http.ResponseWriter, req *http.Request,
 		statusCode := self.asHttpStatusCode(*err)
 		http.Error(res, (*err).Error(), statusCode)
 	} else {
+		header := res.Header()
 		if len(*mime) > 0 {
-			res.Header().Set("Content-Type", *mime)
+			header.Set("Content-Type", *mime)
 		} else {
-			res.Header().Set("Content-Type", "application/octet-stream")
+			header.Set("Content-Type", "application/octet-stream")
 		}
+		header.Set("Content-Length", strconv.Itoa(len(*data)))
 		res.Write(*data)
 	}
 }
