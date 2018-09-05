@@ -88,7 +88,7 @@ func (self *HttpServer) handleFileUpload(res http.ResponseWriter, req *http.Requ
 	}
 	xdata["size"] = len(filedata)
 	xdata["mime"] = filemime
-	xdata["path"] = filepath
+	xdata["filepath"] = filepath
 }
 
 func (self *HttpServer) handleFileDelete(res http.ResponseWriter, req *http.Request) {
@@ -114,7 +114,7 @@ func (self *HttpServer) handleFileDelete(res http.ResponseWriter, req *http.Requ
 		xerr = err
 		return
 	}
-	xdata["path"] = filepath
+	xdata["filepath"] = filepath
 }
 
 func (self *HttpServer) handleAdminSnapshot(res http.ResponseWriter, req *http.Request) {
@@ -134,5 +134,5 @@ func (self *HttpServer) handleAdminSnapshot(res http.ResponseWriter, req *http.R
 		xerr = err
 		return
 	}
-	xdata["path"] = ssfile
+	xdata["localpath"] = ssfile
 }
