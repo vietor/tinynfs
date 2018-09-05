@@ -1,3 +1,5 @@
 tinynfs
 ==============
-`tinynfs`  A smail (image) file storage engine
+`tinynfs`  A small file & image storage system
+
+
