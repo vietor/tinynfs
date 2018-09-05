@@ -5,7 +5,7 @@ tinynfs
 
 ## API
 
-The `tinynfs` use the **HTTP REST API** for **most usage**.
+The `tinynfs` use the **HTTP REST API** for **mostly usage**.
 
 Success reponse like:
 
@@ -13,6 +13,7 @@ Success reponse like:
 {
     "code": 0,
     "data": {
+        ...... more fields
     }
 }
 ```
@@ -86,7 +87,8 @@ curl -X POST \
 
 ### Image Storage
 
-Supported type: **gif**, **jpeg**, **png**
+Supported type: **gif**, **jpeg**, **png**.  
+Image can operation in **File Storage**, like **Delete**.
 
 #### Upload Image
 
