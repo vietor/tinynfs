@@ -65,6 +65,7 @@ func (self *ProcessLock) Lock() (bool, error) {
 	}
 	file.Truncate(0)
 	file.Write([]byte(fmt.Sprintf("%d", os.Getpid())))
+	file.Sync()
 	self.file = file
 	return true, nil
 }
