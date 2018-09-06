@@ -4,9 +4,7 @@ export GOPATH = $(PROJECT_PATH)
 
 TIMESTAMP := $(shell /bin/date "+%s")
 
-default: exec
-
-exec:
+run:
 	go run src/tinynfsd.go
 
 deps:
@@ -23,3 +21,4 @@ clean:
 	rm -f bin/tinynfsd
 	rm -f tinynfs-archive-*
 
+.PHONY: run deps build archive clean
