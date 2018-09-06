@@ -146,5 +146,5 @@ func (self *HttpServer) handleAdminSnapshot(res http.ResponseWriter, req *http.R
 		xerr = err
 		return
 	}
-	xdata["localpath"] = ssfile
+	xdata["filename"] = ssfile
 }

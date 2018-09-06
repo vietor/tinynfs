@@ -1,6 +1,7 @@
 package tinynfs
 
 import (
+	"compress/gzip"
 	"encoding/json"
 	"fmt"
 	bolt "github.com/etcd-io/bbolt"
@@ -214,33 +215,47 @@ func (self *FileSystem) Snapshot(force bool) (string, error) {
 	if err := os.MkdirAll(sspath, 0777); err != nil {
 		return "", err
 	}
-	files, err := ioutil.ReadDir(sspath)
+	// Get needless snapshot names
+	ssfiles, err := ioutil.ReadDir(sspath)
 	if err != nil {
 		return "", err
 	}
-	uptime := self.timeOnUpdate
-	ssfile := fmt.Sprintf("snapshots/storage.db.%d", time.Now().UnixNano())
-	err = self.storageDB.View(func(tx *bolt.Tx) error {
-		return tx.CopyFile(filepath.Join(self.root, ssfile), 0644)
-	})
-	if err == nil {
-		self.timeOnSnapshot = uptime
-		names := []string{}
-		for _, file := range files {
-			name := file.Name()
-			if m, _ := regexp.MatchString("^storage\\.db\\.", name); m {
-				names = append(names, name)
-			}
-		}
-		if len(names) > self.config.SnapshotReserve {
-			sort.Strings(names)
-			names = names[:len(names)-self.config.SnapshotReserve]
-			for _, name := range names {
-				os.Remove(filepath.Join(sspath, name))
-			}
+	ssnames := []string{}
+	for _, file := range ssfiles {
+		name := file.Name()
+		if m, _ := regexp.MatchString("^storage\\.db\\.", name); m {
+			ssnames = append(ssnames, name)
 		}
 	}
-	return ssfile, err
+	if len(ssnames) > self.config.SnapshotReserve {
+		sort.Strings(ssnames)
+		ssnames = ssnames[:len(ssnames)-self.config.SnapshotReserve]
+	}
+	// Create new snapshot
+	uptime := self.timeOnUpdate
+	ssname := fmt.Sprintf("storage.db.%d.gz", time.Now().UnixNano())
+	gzfile, err := os.OpenFile(filepath.Join(sspath, ssname), os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0644)
+	if err != nil {
+		return "", err
+	}
+	writer := gzip.NewWriter(gzfile)
+	err = self.storageDB.View(func(tx *bolt.Tx) error {
+		_, err := tx.WriteTo(writer)
+		return err
+	})
+	writer.Close()
+	gzfile.Close()
+	if err != nil {
+		os.Remove(filepath.Join(sspath, ssname))
+		return "", err
+	}
+	self.timeOnSnapshot = uptime
+	// Remove needless snapshot files
+	for _, name := range ssnames {
+		os.Remove(filepath.Join(sspath, name))
+	}
+
+	return ssname, err
 }
 
 func NewFileSystem(root string, config *Storage) (*FileSystem, error) {
