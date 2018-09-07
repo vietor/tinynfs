@@ -2,6 +2,7 @@ package tinynfs
 
 import (
 	"compress/gzip"
+	"crypto/sha256"
 	"encoding/json"
 	"fmt"
 	bolt "github.com/etcd-io/bbolt"
@@ -14,13 +15,17 @@ import (
 	"time"
 )
 
+type HashNode struct {
+	Size         int   `json:"size"`
+	GroupId      int   `json:"group_id"`
+	VolumeId     int64 `json:"volume_id"`
+	VolumeOffset int64 `json:"volume_offset"`
+}
+
 type FileNode struct {
-	Size         int    `json:"size"`
-	Mime         string `json:"mime"`
-	Metadata     string `json:"metadata"`
-	GroupId      int    `json:"group_id"`
-	VolumeId     int64  `json:"volume_id"`
-	VolumeOffset int64  `json:"volume_offset"`
+	HashNode
+	Mime     string `json:"mime"`
+	Metadata string `json:"metadata"`
 }
 
 type FileSystem struct {
@@ -39,7 +44,7 @@ type WriteOptions struct {
 
 var (
 	fileBucket          = []byte("files")
-	deleteFileBucket    = []byte("deletefiles")
+	hashBucket          = []byte("hashs")
 	defaultWriteOptions = &WriteOptions{
 		Overwrite: true,
 	}
@@ -75,7 +80,7 @@ func (self *FileSystem) init() error {
 		return nil
 	})
 	self.storageDB.Update(func(tx *bolt.Tx) error {
-		_, err := tx.CreateBucketIfNotExists(deleteFileBucket)
+		_, err := tx.CreateBucketIfNotExists(hashBucket)
 		if err != nil {
 			return fmt.Errorf("create bucket: %s", err)
 		}
@@ -93,23 +98,18 @@ func (self *FileSystem) Close() {
 	}
 }
 
-func (self *FileSystem) readNode(bucket []byte, key []byte) (*FileNode, error) {
-	var node *FileNode
-	err := self.storageDB.View(func(tx *bolt.Tx) error {
+func (self *FileSystem) readNode(bucket []byte, key []byte, node interface{}) error {
+	return self.storageDB.View(func(tx *bolt.Tx) error {
 		bt := tx.Bucket(bucket)
 		v := bt.Get(key)
-		if v != nil {
-			return json.Unmarshal(v, &node)
+		if v == nil {
+			return nil
 		}
-		return nil
+		return json.Unmarshal(v, node)
 	})
-	if err != nil {
-		node = nil
-	}
-	return node, err
 }
 
-func (self *FileSystem) writeNode(bucket []byte, key []byte, node *FileNode) error {
+func (self *FileSystem) writeNode(bucket []byte, key []byte, node interface{}) error {
 	return self.storageDB.Update(func(tx *bolt.Tx) error {
 		bt := tx.Bucket(bucket)
 		b, err := json.Marshal(node)
@@ -121,19 +121,22 @@ func (self *FileSystem) writeNode(bucket []byte, key []byte, node *FileNode) err
 }
 
 func (self *FileSystem) ReadFile(filepath string) (string, string, []byte, error) {
-	node, _ := self.readNode(fileBucket, []byte(filepath))
-	if node == nil {
+	var fnode *FileNode
+	if err := self.readNode(fileBucket, []byte(filepath), &fnode); err != nil {
+		return "", "", nil, err
+	}
+	if fnode == nil {
 		return "", "", nil, ErrNotExist
 	}
-	volumeStorage := self.volumeStorages[node.GroupId]
+	volumeStorage := self.volumeStorages[fnode.GroupId]
 	if volumeStorage == nil {
 		return "", "", nil, ErrNotExist
 	}
-	data, err := volumeStorage.ReadFile(node.VolumeId, node.VolumeOffset, node.Size)
+	data, err := volumeStorage.ReadFile(fnode.VolumeId, fnode.VolumeOffset, fnode.Size)
 	if err != nil {
 		return "", "", nil, ErrNotExist
 	}
-	return node.Mime, node.Metadata, data, nil
+	return fnode.Mime, fnode.Metadata, data, nil
 }
 
 func (self *FileSystem) WriteFile(filepath string, filemime string, metadata string, data []byte, options *WriteOptions) error {
@@ -148,56 +151,76 @@ func (self *FileSystem) WriteFile(filepath string, filemime string, metadata str
 		return ErrFileSystemFully
 	}
 
-	oldnode, _ := self.readNode(fileBucket, []byte(filepath))
-	if oldnode != nil && !options.Overwrite {
-		return ErrExist
-	}
-
-	var (
-		groupId       int
-		volumeStorage *VolumeStorage
-	)
-	for _, id := range self.volumeGroupIds {
-		storage := self.volumeStorages[id]
-		if f, _ := storage.IsFully(); !f {
-			groupId = id
-			volumeStorage = storage
-			break
+	filekey := []byte(filepath)
+	if !options.Overwrite {
+		var fnode *FileNode
+		if err := self.readNode(fileBucket, filekey, &fnode); err != nil {
+			return err
+		}
+		if fnode != nil {
+			return ErrExist
 		}
 	}
-	if volumeStorage == nil {
-		return ErrVolumeStorageFully
-	}
 
-	volumeId, volumeOffset, err := volumeStorage.WriteFile(data)
-	if err != nil {
+	var hnode *HashNode
+	var fnode *FileNode
+	hashtmp := sha256.Sum256(data)
+	hashkey := hashtmp[:]
+	if err := self.readNode(hashBucket, hashkey, &hnode); err != nil {
 		return err
 	}
-	node := &FileNode{len(data), filemime, metadata, groupId, volumeId, volumeOffset}
+	if hnode != nil {
+		fnode = &FileNode{*hnode, filemime, metadata}
+	} else {
+		var (
+			groupId       int
+			volumeStorage *VolumeStorage
+		)
+		for _, id := range self.volumeGroupIds {
+			storage := self.volumeStorages[id]
+			if f, _ := storage.IsFully(); !f {
+				groupId = id
+				volumeStorage = storage
+				break
+			}
+		}
+		if volumeStorage == nil {
+			return ErrVolumeStorageFully
+		}
+		volumeId, volumeOffset, err := volumeStorage.WriteFile(data)
+		if err != nil {
+			return err
+		}
+		hnode = &HashNode{len(data), groupId, volumeId, volumeOffset}
+		err = self.writeNode(hashBucket, hashkey, hnode)
+		if err != nil {
+			return err
+		}
+		fnode = &FileNode{*hnode, filemime, metadata}
+	}
 
-	err = self.writeNode(fileBucket, []byte(filepath), node)
+	err = self.writeNode(fileBucket, filekey, fnode)
 	if err == nil {
 		self.timeOnUpdate = time.Now().Unix()
-		if oldnode != nil {
-			self.writeNode(deleteFileBucket, []byte(fmt.Sprintf("%s\r\n%d", filepath, time.Now().UnixNano())), oldnode)
-		}
 	}
 	return err
 }
 
 func (self *FileSystem) DeleteFile(filepath string) error {
-	node, _ := self.readNode(fileBucket, []byte(filepath))
-	if node == nil {
+	filekey := []byte(filepath)
+	var fnode *FileNode
+	if err := self.readNode(fileBucket, filekey, &fnode); err != nil {
+		return err
+	}
+	if fnode == nil {
 		return ErrNotExist
 	}
-
 	err := self.storageDB.Update(func(tx *bolt.Tx) error {
 		bt := tx.Bucket(fileBucket)
-		return bt.Delete([]byte(filepath))
+		return bt.Delete(filekey)
 	})
 	if err == nil {
 		self.timeOnUpdate = time.Now().Unix()
-		self.writeNode(deleteFileBucket, []byte(fmt.Sprintf("%s\r\n%d", filepath, time.Now().UnixNano())), node)
 	}
 	return err
 }
