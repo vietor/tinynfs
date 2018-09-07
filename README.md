@@ -181,6 +181,4 @@ The acceptable thumbnail size was defined in configuration file
 
 ## Caveats & Limitations
 
-* `tinynfs` never **recovery** volume disk space. When **deleting** a file, it  
-  simply discards the **file path** and does not make any modifications to the  
-  volume file.
+* The `tinynfs` never **recovery** volume disk space. When **deleting** a file, it simply discards the **file path** and does not make any modifications to the volume file.
