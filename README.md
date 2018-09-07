@@ -179,3 +179,8 @@ The acceptable thumbnail size was defined in configuration file
 # network.image.thumbnail.sizes=240x240,192x192
 ```
 
+## Caveats & Limitations
+
+* `tinynfs` never **recovery** volume disk space. When **deleting** a file, it  
+  simply discards the **file path** and does not make any modifications to the  
+  volume file.
