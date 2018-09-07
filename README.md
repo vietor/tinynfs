@@ -181,4 +181,6 @@ The acceptable thumbnail size was defined in configuration file
 
 ## Caveats & Limitations
 
+* The `tinynfs` use sha256 to save storage of the same file
+
 * The `tinynfs` never **recovery** volume disk space. When **deleting** a file, it simply discards the **file path** and does not make any modifications to the volume file.
