@@ -25,22 +25,9 @@ func (self *HttpServer) Close() {
 	}
 }
 
-func (self *HttpServer) asHttpStatusCode(err error) int {
-	if err == ErrParam || err == ErrThumbnailSize {
-		return http.StatusBadRequest
-	} else if err == ErrPermission || err == ErrExist {
-		return http.StatusForbidden
-	} else if err == ErrNotExist {
-		return http.StatusNotFound
-	} else if err == ErrMediaType {
-		return http.StatusUnsupportedMediaType
-	}
-	return http.StatusInternalServerError
-}
-
 func (self *HttpServer) sendByteData(res http.ResponseWriter, req *http.Request, err *error, mime *string, data *[]byte) {
 	if *err != nil {
-		statusCode := self.asHttpStatusCode(*err)
+		statusCode := toStatusCode(*err)
 		http.Error(res, (*err).Error(), statusCode)
 	} else {
 		header := res.Header()
@@ -61,9 +48,9 @@ func (self *HttpServer) sendJsonData(res http.ResponseWriter, req *http.Request,
 		result["code"] = 0
 		result["data"] = data
 	} else {
-		result["code"] = 1
+		result["code"] = toErrorCode(*err)
 		result["error"] = (*err).Error()
-		res.WriteHeader(self.asHttpStatusCode(*err))
+		res.WriteHeader(toStatusCode(*err))
 	}
 	json.NewEncoder(res).Encode(result)
 }

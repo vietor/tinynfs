@@ -13,7 +13,7 @@ Success reponse like:
 {
     "code": 0,
     "data": {
-        ...... more fields
+        ... more fields ...
     }
 }
 ```
@@ -21,7 +21,7 @@ Success reponse like:
 Error response like:
 ``` json
 {
-    "code": 1,
+    "code": 105,
     "error": "unsupported media type"
 }
 ```
