@@ -162,8 +162,10 @@ func (self *FileSystem) WriteFile(filepath string, filemime string, metadata str
 		}
 	}
 
-	var hnode *HashNode
-	var fnode *FileNode
+	var (
+		hnode *HashNode
+		fnode *FileNode
+	)
 	hashtmp := sha256.Sum256(data)
 	hashkey := hashtmp[:]
 	if err := self.readNode(hashBucket, hashkey, &hnode); err != nil {
@@ -172,6 +174,7 @@ func (self *FileSystem) WriteFile(filepath string, filemime string, metadata str
 	if hnode != nil {
 		fnode = &FileNode{*hnode, filemime, metadata}
 	} else {
+		// CONFUSED: leak node when same hash concurrent write
 		var (
 			groupId       int
 			volumeStorage *VolumeStorage
@@ -192,10 +195,10 @@ func (self *FileSystem) WriteFile(filepath string, filemime string, metadata str
 			return err
 		}
 		hnode = &HashNode{len(data), groupId, volumeId, volumeOffset}
-		err = self.writeNode(hashBucket, hashkey, hnode)
-		if err != nil {
+		if err = self.writeNode(hashBucket, hashkey, hnode); err != nil {
 			return err
 		}
+		self.timeOnUpdate = time.Now().Unix()
 		fnode = &FileNode{*hnode, filemime, metadata}
 	}
 
