@@ -108,7 +108,7 @@ func NewConfig(filepath string) (*Config, error) {
 			},
 		},
 		Storage: &Storage{
-			DiskRemain:       50 * 1024 * 1024,
+			DiskRemain:       100 * 1024 * 1024,
 			SnapshotInterval: 1800,
 			SnapshotReserve:  2,
 			VolumeSliceSize:  5 * 1024 * 1024 * 1024,

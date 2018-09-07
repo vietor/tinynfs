@@ -166,7 +166,7 @@ func (self *FileSystem) WriteFile(filepath string, filemime string, metadata str
 		}
 	}
 	if volumeStorage == nil {
-		return ErrFileSystemFully
+		return ErrVolumeStorageFully
 	}
 
 	volumeId, volumeOffset, err := volumeStorage.WriteFile(data)
