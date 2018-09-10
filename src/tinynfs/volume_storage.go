@@ -181,15 +181,15 @@ func (self *VolumeStorage) WriteFile(data []byte) (int64, int64, error) {
 	return v.id, offset, nil
 }
 
-func NewVolumeStorage(root string, limit int64, remain int64) (*VolumeStorage, error) {
+func NewVolumeStorage(root string, sliceSize int64, diskRemain int64) (*VolumeStorage, error) {
 	if err := os.MkdirAll(root, 0777); err != nil {
 		return nil, err
 	}
 
 	storage := &VolumeStorage{
 		root:        root,
-		sliceSize:   limit,
-		diskRemain:  remain,
+		sliceSize:   sliceSize,
+		diskRemain:  diskRemain,
 		volumes:     map[int64]*VolumeFile{},
 		volumeMap:   map[int64]*VolumeFile{},
 		volumePlock: NewProcessLock(root + "/volume.lock"),
