@@ -195,18 +195,18 @@ func (self *FileSystem) WriteFile(filepath string, filemime string, metadata str
 			return err
 		}
 		hnode = &HashNode{len(data), groupId, volumeId, volumeOffset}
-		if err = self.writeNode(hashBucket, hashkey, hnode); err != nil {
+		if err := self.writeNode(hashBucket, hashkey, hnode); err != nil {
 			return err
 		}
 		self.timeOnUpdate = time.Now().Unix()
 		fnode = &FileNode{*hnode, filemime, metadata}
 	}
 
-	err = self.writeNode(fileBucket, filekey, fnode)
-	if err == nil {
-		self.timeOnUpdate = time.Now().Unix()
+	if err := self.writeNode(fileBucket, filekey, fnode); err != nil {
+		return err
 	}
-	return err
+	self.timeOnUpdate = time.Now().Unix()
+	return nil
 }
 
 func (self *FileSystem) DeleteFile(filepath string) error {
@@ -218,14 +218,14 @@ func (self *FileSystem) DeleteFile(filepath string) error {
 	if fnode == nil {
 		return ErrNotExist
 	}
-	err := self.storageDB.Update(func(tx *bolt.Tx) error {
+	if err := self.storageDB.Update(func(tx *bolt.Tx) error {
 		bt := tx.Bucket(fileBucket)
 		return bt.Delete(filekey)
-	})
-	if err == nil {
-		self.timeOnUpdate = time.Now().Unix()
+	}); err != nil {
+		return err
 	}
-	return err
+	self.timeOnUpdate = time.Now().Unix()
+	return nil
 }
 
 func (self *FileSystem) Snapshot(force bool) (string, error) {
