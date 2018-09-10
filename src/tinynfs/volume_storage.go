@@ -110,12 +110,14 @@ func (self *VolumeStorage) requireVolume() (*VolumeFile, error) {
 			return v, nil
 		}
 	}
+
 	v, err := self.makeFile(time.Now().UnixNano(), 0)
-	if err == nil {
-		self.volumes[v.id] = v
-		self.volumeMap[v.id] = v
+	if err != nil {
+		return nil, err
 	}
-	return v, err
+	self.volumes[v.id] = v
+	self.volumeMap[v.id] = v
+	return v, nil
 }
 
 func (self *VolumeStorage) IsFully() (bool, error) {
