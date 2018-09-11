@@ -103,9 +103,9 @@ func (self *HttpServer) handleImageGet(res http.ResponseWriter, req *http.Reques
 		err        error
 		awidth     int
 		aheight    int
-		data       []byte
-		mime       string
+		mimedata   string
 		metadata   string
+		imagedata  []byte
 		originpath string
 	)
 
@@ -125,10 +125,10 @@ func (self *HttpServer) handleImageGet(res http.ResponseWriter, req *http.Reques
 	}
 
 	// Read thumbnail file
-	mime, metadata, data, err = self.storage.ReadFile(filepath)
+	mimedata, metadata, imagedata, err = self.storage.ReadFile(filepath)
 	if err == nil {
-		xmime = mime
-		xdata = data
+		xmime = mimedata
+		xdata = imagedata
 		return
 	} else if err != ErrNotExist || len(originpath) < 1 {
 		xerr = err
@@ -136,7 +136,7 @@ func (self *HttpServer) handleImageGet(res http.ResponseWriter, req *http.Reques
 	}
 
 	// Read origin file
-	mime, metadata, data, err = self.storage.ReadFile(originpath)
+	mimedata, metadata, imagedata, err = self.storage.ReadFile(originpath)
 	if err != nil {
 		xerr = err
 		return
@@ -148,13 +148,13 @@ func (self *HttpServer) handleImageGet(res http.ResponseWriter, req *http.Reques
 	}
 	// Ignore image scale
 	if owidth < awidth && oheight < aheight {
-		xmime = mime
-		xdata = data
+		xmime = mimedata
+		xdata = imagedata
 		return
 	}
 
 	// Create thumbnail image
-	reader := bytes.NewReader(data)
+	reader := bytes.NewReader(imagedata)
 	origin, _, err := image.Decode(reader)
 	if err != nil {
 		xerr = ErrMediaType
@@ -168,11 +168,8 @@ func (self *HttpServer) handleImageGet(res http.ResponseWriter, req *http.Reques
 	}
 	scaler.Scale(target, target.Bounds(), origin, origin.Bounds(), draw.Over, nil)
 	buffer := bytes.NewBuffer(nil)
-	if mime == "image/jpeg" {
-		jopt := &jpeg.Options{
-			Quality: 70,
-		}
-		if err := jpeg.Encode(buffer, target, jopt); err != nil {
+	if mimedata == "image/jpeg" {
+		if err := jpeg.Encode(buffer, target, nil); err != nil {
 			xerr = err
 			return
 		}
@@ -181,22 +178,21 @@ func (self *HttpServer) handleImageGet(res http.ResponseWriter, req *http.Reques
 			xerr = err
 			return
 		}
-		mime = "image/png"
+		mimedata = "image/png"
 	}
-	data = buffer.Bytes()
+	imagedata = buffer.Bytes()
 
 	filepath = fmt.Sprintf("%s_%dx%d", originpath, awidth, aheight)
 	metadata = fmt.Sprintf("%dx%d", width, height)
 	options := &WriteOptions{
 		Overwrite: false,
 	}
-	err = self.storage.WriteFile(filepath, mime, metadata, data, options)
-	if err != nil && err != ErrExist {
+	if err := self.storage.WriteFile(filepath, mimedata, metadata, imagedata, options); err != nil && err != ErrExist {
 		xerr = err
 		return
 	}
-	xmime = mime
-	xdata = data
+	xmime = mimedata
+	xdata = imagedata
 }
 
 func (self *HttpServer) saveImageToStorage(dataimage io.Reader) (map[string]interface{}, error) {
@@ -244,18 +240,16 @@ func (self *HttpServer) saveImageToStorage(dataimage io.Reader) (map[string]inte
 		data = buffer.Bytes()
 	}
 
-	mime := strings.ToLower("image/" + format)
+	mimedata := "image/" + format
 	metadata := fmt.Sprintf("%dx%d", width, height)
-
 	filepath := self.config.ImageFilePath + RandHex(10) + TimeHex(0)
-	err = self.storage.WriteFile(filepath, mime, metadata, data, nil)
-	if err != nil {
+	if err := self.storage.WriteFile(filepath, mimedata, metadata, data, nil); err != nil {
 		return nil, err
 	}
 
 	imageout := map[string]interface{}{}
 	imageout["size"] = len(data)
-	imageout["mime"] = mime
+	imageout["mime"] = mimedata
 	imageout["width"] = width
 	imageout["height"] = height
 	imageout["image_url"] = filepath
