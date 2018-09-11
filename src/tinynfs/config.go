@@ -15,6 +15,8 @@ type Network struct {
 	FileBind            string
 	ImageBind           string
 	ImageFilePath       string
+	ImageOtimizeSize    int
+	ImageOtimizeSide    int
 	ImageThumbnailSizes map[string]bool
 }
 
@@ -48,6 +50,8 @@ func (self *Config) Dump() string {
 	for k := range self.Network.ImageThumbnailSizes {
 		sizes = append(sizes, k)
 	}
+	lines = append(lines, fmt.Sprintf("network.image.optimize.size=%d #Bytes", self.Network.ImageOtimizeSize))
+	lines = append(lines, fmt.Sprintf("network.image.optimize.side=%d", self.Network.ImageOtimizeSide))
 	lines = append(lines, "network.image.thumbnail.sizes="+strings.Join(sizes, ","))
 	lines = append(lines, fmt.Sprintf("storage.disk.remain=%d #Bytes", self.Storage.DiskRemain))
 	lines = append(lines, fmt.Sprintf("storage.snapshot.interval=%d #Seconds", self.Storage.SnapshotInterval))
@@ -98,10 +102,12 @@ func parseBytes(s string) (uint64, error) {
 func NewConfig(filepath string) (*Config, error) {
 	config := &Config{
 		Network: &Network{
-			Tcp:           "tcp4",
-			FileBind:      ":7119",
-			ImageBind:     ":7120",
-			ImageFilePath: "/image1/",
+			Tcp:              "tcp4",
+			FileBind:         ":7119",
+			ImageBind:        ":7120",
+			ImageFilePath:    "/image1/",
+			ImageOtimizeSize: 100 * 1024,
+			ImageOtimizeSide: 2048,
 			ImageThumbnailSizes: map[string]bool{
 				"192x192": true,
 				"240x240": true,
@@ -170,6 +176,20 @@ func NewConfig(filepath string) (*Config, error) {
 				return nil, fmt.Errorf("line %d: %s", no, err)
 			} else {
 				config.Network.ImageFilePath = value
+			}
+		case "network.image.optimize.size":
+			size, err := parseBytes(value)
+			if err != nil {
+				return nil, fmt.Errorf("line %d: %s", no, err)
+			} else {
+				config.Network.ImageOtimizeSize = int(size)
+			}
+		case "network.image.optimize.side":
+			side, err := strconv.ParseUint(value, 10, 32)
+			if err != nil {
+				return nil, fmt.Errorf("line %d: %s", no, err)
+			} else {
+				config.Network.ImageOtimizeSide = int(side)
 			}
 		case "network.image.thumbnail.sizes":
 			if m, _ := regexp.MatchString("^[0-9x,]+$", value); !m {
