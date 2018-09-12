@@ -54,7 +54,7 @@ func (self *FileSystem) init() error {
 	db, err := bolt.Open(filepath.Join(self.root, "storage.db"), 0644, &bolt.Options{Timeout: 1 * time.Second})
 	if err != nil {
 		if err == bolt.ErrTimeout {
-			err = ErrFileSystemBusy
+			err = ErrIndexStorageBusy
 		}
 		return err
 	}
@@ -148,7 +148,7 @@ func (self *FileSystem) WriteFile(filepath string, filemime string, metadata str
 	if err != nil {
 		return err
 	} else if dstat.Free < uint64(self.config.DiskRemain) {
-		return ErrFileSystemFully
+		return ErrIndexStorageFully
 	}
 
 	filekey := []byte(filepath)

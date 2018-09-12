@@ -16,10 +16,10 @@ var (
 	ErrMediaType     = errors.New("unsupported media type")
 	ErrThumbnailSize = errors.New("unacceptable thumbnail size")
 
-	ErrFileSystemBusy     = errors.New("file system already lock")
-	ErrFileSystemFully    = errors.New("file system diskspace fully")
-	ErrVolumeStorageBusy  = errors.New("volume storage diskspace fully")
-	ErrVolumeStorageFully = errors.New("volume storage already lock")
+	ErrIndexStorageBusy   = errors.New("index storage already lock")
+	ErrIndexStorageFully  = errors.New("index storage disk space fully")
+	ErrVolumeStorageBusy  = errors.New("volume storage already lock")
+	ErrVolumeStorageFully = errors.New("volume storage disk space fully")
 )
 
 var (
@@ -30,7 +30,7 @@ var (
 		ErrNotExist:           104,
 		ErrMediaType:          105,
 		ErrThumbnailSize:      106,
-		ErrFileSystemFully:    201,
+		ErrIndexStorageFully:  201,
 		ErrVolumeStorageFully: 202,
 	}
 	httpStatusCodes = map[error]int{
