@@ -17,6 +17,10 @@ import (
 	"strings"
 )
 
+var (
+	defaultScaler = draw.BiLinear
+)
+
 func init() {
 	image.RegisterFormat("gif", "gif", gif.Decode, gif.DecodeConfig)
 	image.RegisterFormat("png", "png", png.Decode, png.DecodeConfig)
@@ -162,11 +166,7 @@ func (self *HttpServer) handleImageGet(res http.ResponseWriter, req *http.Reques
 	}
 	width, height := getScaledSize(owidth, oheight, awidth, aheight)
 	target := image.NewRGBA(image.Rect(0, 0, width, height))
-	scaler := draw.ApproxBiLinear
-	if width*5 < owidth || height*5 < oheight {
-		scaler = draw.BiLinear
-	}
-	scaler.Scale(target, target.Bounds(), origin, origin.Bounds(), draw.Over, nil)
+	defaultScaler.Scale(target, target.Bounds(), origin, origin.Bounds(), draw.Over, nil)
 	buffer := bytes.NewBuffer(nil)
 	if mimedata == "image/jpeg" {
 		if err := jpeg.Encode(buffer, target, nil); err != nil {
@@ -214,7 +214,7 @@ func (self *HttpServer) saveImageToStorage(dataimage io.Reader) (map[string]inte
 	} else if self.config.ImageOtimizeSide > 0 && (width > self.config.ImageOtimizeSide || height > self.config.ImageOtimizeSide) {
 		width, height = getScaledSize(width, height, self.config.ImageOtimizeSide, self.config.ImageOtimizeSide)
 		target := image.NewRGBA(image.Rect(0, 0, width, height))
-		draw.BiLinear.Scale(target, target.Bounds(), origin, origin.Bounds(), draw.Over, nil)
+		defaultScaler.Scale(target, target.Bounds(), origin, origin.Bounds(), draw.Over, nil)
 		buffer := bytes.NewBuffer(nil)
 		if format == "jpeg" {
 			if err := jpeg.Encode(buffer, target, nil); err != nil {
