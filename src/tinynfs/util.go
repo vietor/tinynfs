@@ -1,14 +1,9 @@
 package tinynfs
 
 import (
-	crand "crypto/rand"
 	"fmt"
-	"io"
-	mrand "math/rand"
 	"os"
 	"path/filepath"
-	"sync"
-	"time"
 )
 
 type DiskStat struct {
@@ -18,33 +13,6 @@ type DiskStat struct {
 }
 
 type OnProcessExit func()
-
-var myRand = struct {
-	lock sync.Mutex
-	rand *mrand.Rand
-}{
-	rand: mrand.New(mrand.NewSource(time.Now().UnixNano())),
-}
-
-func TimeHex(style int) string {
-	var ts int64
-	if style == 0 {
-		ts = time.Now().Unix()
-	} else {
-		ts = time.Now().UnixNano()
-	}
-	return fmt.Sprintf("%x", ts)
-}
-
-func RandHex(bytes int) string {
-	randBytes := make([]byte, bytes)
-	if _, err := io.ReadFull(crand.Reader, randBytes); err != nil {
-		myRand.lock.Lock()
-		myRand.rand.Read(randBytes)
-		myRand.lock.Unlock()
-	}
-	return fmt.Sprintf("%x", randBytes)
-}
 
 type ProcessLock struct {
 	file     *os.File

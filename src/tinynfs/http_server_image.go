@@ -4,11 +4,17 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
+	"math/rand"
 	"net/http"
 	"regexp"
 	"strconv"
 	"strings"
+	"time"
 )
+
+func init() {
+	rand.Seed(time.Now().UnixNano())
+}
 
 func (self *HttpServer) startImage() {
 	var (
@@ -24,6 +30,12 @@ func (self *HttpServer) startImage() {
 	if err != nil && !self.closed {
 		fmt.Println(err)
 	}
+}
+
+func (self *HttpServer) getImageFilePath() string {
+	token := make([]byte, 10)
+	rand.Read(token)
+	return self.config.ImageFilePath + fmt.Sprintf("%x%x", token, time.Now().Unix())
 }
 
 func (self *HttpServer) parseImageSize(size string) (int, int) {
@@ -148,7 +160,7 @@ func (self *HttpServer) saveImageToStorage(stream io.Reader) (map[string]interfa
 
 	mimedata := "image/" + format
 	metadata := fmt.Sprintf("%dx%d", width, height)
-	filepath := self.config.ImageFilePath + RandHex(10) + TimeHex(0)
+	filepath := self.getImageFilePath()
 	if err := self.storage.WriteFile(filepath, mimedata, metadata, imagedata, nil); err != nil {
 		return nil, err
 	}
