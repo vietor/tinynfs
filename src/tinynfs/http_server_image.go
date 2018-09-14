@@ -1,56 +1,14 @@
 package tinynfs
 
 import (
-	"bytes"
 	"fmt"
-	"golang.org/x/image/draw"
-	"image"
-	"image/gif"
-	"image/jpeg"
-	"image/png"
 	"io"
 	"io/ioutil"
-	"math"
 	"net/http"
 	"regexp"
 	"strconv"
 	"strings"
 )
-
-var (
-	defaultScaler = draw.BiLinear
-)
-
-func init() {
-	image.RegisterFormat("gif", "gif", gif.Decode, gif.DecodeConfig)
-	image.RegisterFormat("png", "png", png.Decode, png.DecodeConfig)
-	image.RegisterFormat("jpeg", "jpeg", jpeg.Decode, jpeg.DecodeConfig)
-}
-
-func getScaledSize(owidth int, oheight int, awidth int, aheight int) (int, int) {
-	if owidth == awidth && oheight == aheight {
-		return owidth, oheight
-	}
-	if owidth > oheight {
-		if owidth > awidth {
-			oheight = int(math.Floor(float64(awidth) * float64(oheight) / float64(owidth)))
-			owidth = awidth
-		}
-	} else if owidth < oheight {
-		if oheight > aheight {
-			owidth = int(math.Floor(float64(aheight) * float64(owidth) / float64(oheight)))
-			oheight = aheight
-		}
-	} else {
-		side := awidth
-		if awidth > aheight {
-			side = aheight
-		}
-		owidth = side
-		oheight = side
-	}
-	return owidth, oheight
-}
 
 func (self *HttpServer) startImage() {
 	var (
@@ -157,33 +115,15 @@ func (self *HttpServer) handleImageGet(res http.ResponseWriter, req *http.Reques
 		return
 	}
 
-	// Create thumbnail image
-	reader := bytes.NewReader(imagedata)
-	origin, _, err := image.Decode(reader)
+	width, height, format, imagedata, err := ImageScaleBuffer(imagedata, awidth, aheight)
 	if err != nil {
-		xerr = ErrMediaType
+		xerr = err
 		return
 	}
-	width, height := getScaledSize(owidth, oheight, awidth, aheight)
-	target := image.NewRGBA(image.Rect(0, 0, width, height))
-	defaultScaler.Scale(target, target.Bounds(), origin, origin.Bounds(), draw.Over, nil)
-	buffer := bytes.NewBuffer(nil)
-	if mimedata == "image/jpeg" {
-		if err := jpeg.Encode(buffer, target, nil); err != nil {
-			xerr = err
-			return
-		}
-	} else { // Gif to png
-		if err := png.Encode(buffer, target); err != nil {
-			xerr = err
-			return
-		}
-		mimedata = "image/png"
-	}
-	imagedata = buffer.Bytes()
 
-	filepath = fmt.Sprintf("%s_%dx%d", originpath, awidth, aheight)
+	mimedata = "image/" + format
 	metadata = fmt.Sprintf("%dx%d", width, height)
+	filepath = fmt.Sprintf("%s_%dx%d", originpath, awidth, aheight)
 	options := &WriteOptions{
 		Overwrite: false,
 	}
@@ -195,60 +135,26 @@ func (self *HttpServer) handleImageGet(res http.ResponseWriter, req *http.Reques
 	xdata = imagedata
 }
 
-func (self *HttpServer) saveImageToStorage(dataimage io.Reader) (map[string]interface{}, error) {
-	data, err := ioutil.ReadAll(dataimage)
+func (self *HttpServer) saveImageToStorage(stream io.Reader) (map[string]interface{}, error) {
+	imagedata, err := ioutil.ReadAll(stream)
 	if err != nil {
 		return nil, err
 	}
 
-	reader := bytes.NewReader(data)
-	origin, format, err := image.Decode(reader)
+	width, height, format, imagedata, err := ImageParseBuffer(imagedata, self.config.ImageOtimizeSide, self.config.ImageOtimizeSize)
 	if err != nil {
-		return nil, ErrMediaType
-	}
-	width := origin.Bounds().Dx()
-	height := origin.Bounds().Dy()
-
-	if format == "gif" {
-		// ignore optimize
-	} else if self.config.ImageOtimizeSide > 0 && (width > self.config.ImageOtimizeSide || height > self.config.ImageOtimizeSide) {
-		width, height = getScaledSize(width, height, self.config.ImageOtimizeSide, self.config.ImageOtimizeSide)
-		target := image.NewRGBA(image.Rect(0, 0, width, height))
-		defaultScaler.Scale(target, target.Bounds(), origin, origin.Bounds(), draw.Over, nil)
-		buffer := bytes.NewBuffer(nil)
-		if format == "jpeg" {
-			if err := jpeg.Encode(buffer, target, nil); err != nil {
-				return nil, err
-			}
-		} else {
-			if err := png.Encode(buffer, target); err != nil {
-				return nil, err
-			}
-		}
-		data = buffer.Bytes()
-	} else if self.config.ImageOtimizeSize > 0 && len(data) > self.config.ImageOtimizeSize {
-		buffer := bytes.NewBuffer(nil)
-		if format == "jpeg" {
-			if err := jpeg.Encode(buffer, origin, nil); err != nil {
-				return nil, err
-			}
-		} else {
-			if err := png.Encode(buffer, origin); err != nil {
-				return nil, err
-			}
-		}
-		data = buffer.Bytes()
+		return nil, err
 	}
 
 	mimedata := "image/" + format
 	metadata := fmt.Sprintf("%dx%d", width, height)
 	filepath := self.config.ImageFilePath + RandHex(10) + TimeHex(0)
-	if err := self.storage.WriteFile(filepath, mimedata, metadata, data, nil); err != nil {
+	if err := self.storage.WriteFile(filepath, mimedata, metadata, imagedata, nil); err != nil {
 		return nil, err
 	}
 
 	imageout := map[string]interface{}{}
-	imageout["size"] = len(data)
+	imageout["size"] = len(imagedata)
 	imageout["mime"] = mimedata
 	imageout["width"] = width
 	imageout["height"] = height
