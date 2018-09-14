@@ -108,7 +108,7 @@ func ImageScaleBuffer(data []byte, awidth int, aheight int) (int, int, string, [
 		if err := png.Encode(buffer, target); err != nil {
 			return 0, 0, "", nil, err
 		}
-		format = "image/png"
+		format = "png"
 	}
 	return width, height, format, buffer.Bytes(), nil
 }
