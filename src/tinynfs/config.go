@@ -109,6 +109,7 @@ func NewConfig(filepath string) (*Config, error) {
 			ImageOtimizeSize: 350 * 1024,
 			ImageOtimizeSide: 2048,
 			ImageThumbnailSizes: map[string]bool{
+				"120x120": true,
 				"240x240": true,
 				"320x480": true,
 			},
