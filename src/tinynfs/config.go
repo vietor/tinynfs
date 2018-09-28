@@ -102,17 +102,13 @@ func parseBytes(s string) (uint64, error) {
 func NewConfig(filepath string) (*Config, error) {
 	config := &Config{
 		Network: &Network{
-			Tcp:              "tcp4",
-			FileBind:         ":7119",
-			ImageBind:        ":7120",
-			ImageFilePath:    "/image1/",
-			ImageOtimizeSize: 350 * 1024,
-			ImageOtimizeSide: 2048,
-			ImageThumbnailSizes: map[string]bool{
-				"120x120": true,
-				"240x240": true,
-				"320x480": true,
-			},
+			Tcp:                 "tcp4",
+			FileBind:            ":7119",
+			ImageBind:           ":7120",
+			ImageFilePath:       "/image1/",
+			ImageOtimizeSize:    350 * 1024,
+			ImageOtimizeSide:    2048,
+			ImageThumbnailSizes: map[string]bool{},
 		},
 		Storage: &Storage{
 			DiskRemain:       100 * 1024 * 1024,
